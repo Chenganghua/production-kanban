@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板</title>
+    <title>技改生产数据看板</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <style>
@@ -63,27 +63,14 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true" id="boardTitle">生产数据看板</h2>
+            <h2 class="board-title" contenteditable="true">技改生产数据看板</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2026-4-29 · V2.5.9</div>
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据库连接中...</span></div>
+                <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-4-29 · V2.6.1</div>
             </div>
         </div>
         <div class="chart-card">
-            <div class="toggle-panel" id="togglePanel">
-                <span style="font-weight:600; margin-right:8px;">产量线：</span>
-                <label><input type="checkbox" checked data-process="后焊"> 后焊</label>
-                <label><input type="checkbox" checked data-process="组装"> 组装</label>
-                <label><input type="checkbox" checked data-process="包装"> 包装</label>
-                <label><input type="checkbox" checked data-process="total"> 总产量</label>
-                <span style="margin-left:16px; font-weight:600;">其他：</span>
-                <label><input type="checkbox" checked data-dataset="defect"> 外观不良</label>
-                <label><input type="checkbox" checked data-dataset="func"> 功能不良</label>
-                <label><input type="checkbox" checked data-dataset="totalDefect"> 不良品总数</label>
-                <label><input type="checkbox" checked data-dataset="rate"> 不良品率</label>
-                <label><input type="checkbox" checked data-dataset="upph"> UPPH</label>
-                <label><input type="checkbox" checked data-dataset="price"> 总单价</label>
-            </div>
+            <div class="toggle-panel" id="togglePanel"></div>
             <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
     </div>
@@ -119,7 +106,7 @@
     let data = {};
     let chart;
     let pending = false;
-    let saveTimer, chartTimer;
+    let saveTimer;
 
     const tabsBar = document.getElementById('tabsBar');
     const tbody = document.getElementById('tableBody');
@@ -127,6 +114,7 @@
     const canvas = document.getElementById('mainChart');
     const dot = document.getElementById('syncDot');
     const txt = document.getElementById('syncText');
+    const togglePanel = document.getElementById('togglePanel');
 
     function showMsg(msg) {
         toast.textContent = msg;
@@ -136,7 +124,7 @@
     }
 
     async function load(u) {
-        dot.className = 'sync-dot syncing'; txt.textContent = '同步中...';
+        dot.className = 'sync-dot syncing'; txt.textContent = '同步数据库中...';
         try {
             const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
             if (error) throw error;
@@ -145,18 +133,19 @@
                 prod: r.production_qty || 0, cos: r.cosmetic_defect || 0,
                 func: r.functional_defect || 0, workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
-            dot.className = 'sync-dot'; txt.textContent = '已连接';
-        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线'; data[u] = []; }
+            dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '未连接数据库'; data[u] = []; }
     }
 
     async function save(u) {
         const rows = data[u] || [];
         if (!rows.length) return;
-        await db.from('production_records').upsert(rows.map(r => ({
+        const { error } = await db.from('production_records').upsert(rows.map(r => ({
             date: r.date, process: r.process, board: u,
             production_qty: r.prod, cosmetic_defect: r.cos, functional_defect: r.func,
             workers: r.workers, daily_hours: r.hrs
         })), { onConflict: 'date, process, board' });
+        if (error) console.error(error);
     }
 
     function upph(p, w, h) { return (w <= 0 || h <= 0 || p <= 0) ? 0 : p / (w * h); }
@@ -242,19 +231,20 @@
     }
 
     function bindEvts() {
-        document.querySelectorAll('input').forEach(i => i.addEventListener('input', e => {
-            const el = e.target;
-            const row = (data[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
-            if (!row) return;
-            row[el.dataset.f] = parseFloat(el.value) || 0;
-            updRow(el.dataset.d, el.dataset.p);
-            updSum(el.dataset.d);
-            updateGT();
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(() => { pending = true; save(active).then(() => pending = false); }, 500);
-            clearTimeout(chartTimer);
-            chartTimer = setTimeout(updChart, 300);
-        }));
+        document.querySelectorAll('input').forEach(i => {
+            i.addEventListener('input', function(e) {
+                const el = e.target;
+                const row = (data[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
+                if (!row) return;
+                row[el.dataset.f] = parseFloat(el.value) || 0;
+                updRow(el.dataset.d, el.dataset.p);
+                updSum(el.dataset.d);
+                updateGT();
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(() => { pending = true; save(active).then(() => pending = false); }, 500);
+            });
+            i.addEventListener('focus', function() { this.select(); });
+        });
 
         document.querySelectorAll('.del-p').forEach(b => b.addEventListener('click', async function() {
             if (!confirm('删除记录？')) return;
@@ -314,16 +304,14 @@
         data[active] = (data[active] || []).concat(rows);
         await save(active);
         await load(active);
-        render();
-        updChart();
+        render(); updChart();
     }
 
     async function clearAll() {
         if (!confirm('删除全部？')) return;
         await db.from('production_records').delete().eq('board', active);
         data[active] = [];
-        render();
-        updChart();
+        render(); updChart();
     }
 
     function prepChart() {
@@ -360,37 +348,42 @@
         if (!chart) initChart();
         const s = prepChart();
         chart.data.labels = s.dates;
-        chart.data.datasets[0].data = s.后焊; chart.data.datasets[1].data = s.组装;
-        chart.data.datasets[2].data = s.包装; chart.data.datasets[3].data = s.total;
-        chart.data.datasets[4].data = s.cos; chart.data.datasets[5].data = s.func;
-        chart.data.datasets[6].data = s.td; chart.data.datasets[7].data = s.rate;
-        chart.data.datasets[8].data = s.upph; chart.data.datasets[9].data = s.price;
+        chart.data.datasets.forEach((ds, i) => {
+            const keys = ['后焊','组装','包装','total','cos','func','td','rate','upph','price'];
+            ds.data = s[keys[i]];
+        });
         chart.update();
     }
 
     function initChart() {
         if (chart) chart.destroy();
         const s = prepChart();
+        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+        const colors = ['#FF9500','#34C759','#007AFF','#000','#AF52DE','#5AC8FA','#FF3B30','#FF9500','#34C759','#FF2D55'];
+        const dashes = [[], [], [], [], [], [], [], [5,2], [3,3], [6,2]];
+        const yAxes = ['y','y','y','y','y','y','y','y1','y1','y1'];
+        const datasets = labels.map((l, i) => ({
+            label: l,
+            data: s[['后焊','组装','包装','total','cos','func','td','rate','upph','price'][i]],
+            borderColor: colors[i],
+            borderWidth: i === 3 ? 3 : 2.5,
+            borderDash: dashes[i],
+            tension: 0.3,
+            yAxisID: yAxes[i],
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            fill: false
+        }));
+
         chart = new Chart(canvas, {
             type: 'line',
-            data: {
-                labels: s.dates,
-                datasets: [
-                    { label: '后焊', data: s.后焊, borderColor: '#FF9500', tension: 0.3, yAxisID: 'y' },
-                    { label: '组装', data: s.组装, borderColor: '#34C759', tension: 0.3, yAxisID: 'y' },
-                    { label: '包装', data: s.包装, borderColor: '#007AFF', tension: 0.3, yAxisID: 'y' },
-                    { label: '总产量', data: s.total, borderColor: '#000', borderWidth: 3, tension: 0.3, yAxisID: 'y' },
-                    { label: '外观不良', data: s.cos, borderColor: '#AF52DE', tension: 0.3, yAxisID: 'y' },
-                    { label: '功能不良', data: s.func, borderColor: '#5AC8FA', tension: 0.3, yAxisID: 'y' },
-                    { label: '不良品总数', data: s.td, borderColor: '#FF3B30', tension: 0.3, yAxisID: 'y' },
-                    { label: '不良品率', data: s.rate, borderColor: '#FF9500', borderDash: [5, 2], tension: 0.3, yAxisID: 'y1' },
-                    { label: 'UPPH', data: s.upph, borderColor: '#34C759', borderDash: [3, 3], tension: 0.3, yAxisID: 'y1' },
-                    { label: '总单价', data: s.price, borderColor: '#FF2D55', borderDash: [6, 2], tension: 0.3, yAxisID: 'y1' }
-                ]
-            },
+            data: { labels: s.dates, datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
+                },
                 scales: {
                     x: { grid: { display: false } },
                     y: { type: 'linear', position: 'left', title: { display: true, text: '数量' }, beginAtZero: true },
@@ -398,13 +391,29 @@
                 }
             }
         });
+        buildTogglePanel();
+    }
+
+    function buildTogglePanel() {
+        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+        togglePanel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
+        labels.forEach((l, i) => {
+            togglePanel.innerHTML += `<label><input type="checkbox" checked data-idx="${i}"> ${l}</label>`;
+        });
+        document.querySelectorAll('#togglePanel input').forEach(cb => {
+            cb.addEventListener('change', function() {
+                if (!chart) return;
+                const idx = parseInt(this.dataset.idx);
+                chart.setDatasetVisibility(idx, this.checked);
+                chart.update();
+            });
+        });
     }
 
     function renderTabs() {
         tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
-            if (e.target.classList.contains('edit-tab')) return;
-            if (e.target.classList.contains('close-tab')) return;
+            if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
         }));
         tabsBar.querySelectorAll('.edit-tab').forEach(s => s.addEventListener('click', e => {
@@ -444,19 +453,18 @@
         active = u;
         if (!data[active]) await load(active);
         renderTabs(); render(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
     }
 
     async function start() {
         for (const u of users) await load(u);
         active = users[0];
         renderTabs(); render(); initChart(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
         db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
             if (pending) return;
             await load(active);
-            render();
-            updChart();
+            render(); updChart();
         }).subscribe();
     }
 
