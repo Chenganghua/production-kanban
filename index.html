@@ -217,7 +217,7 @@
         const defectRate = row.production > 0 ? (defectTotal / row.production * 100).toFixed(2) : '-';
         const avgHourProd = dailyHours > 0 ? row.production / dailyHours : 0;
         const upph = (workers > 0 && dailyHours > 0 && row.production > 0) ? (row.production / (workers * dailyHours)).toFixed(2) : '-';
-        const unitPrice = row.production > 0 ? ((dailyHours * 20) / row.production).toFixed(2) : '-';
+        const unitPrice = row.production > 0 ? ((dailyHours * 200) / row.production).toFixed(2) : '-';
 
         tr.querySelector('.calc-rate').textContent = defectRate + (defectRate !== '-' ? '%' : '');
         tr.querySelector('.calc-total-hours').textContent = totalWorkHours.toFixed(1);
