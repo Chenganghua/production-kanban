@@ -3,161 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="生产数据看板，每日记录生产数量、外观不良、功能不良、人数、工时、单价，自动计算不良品率和UPPH，折线图趋势分析，Supabase实时多设备同步">
-    <title>生产数据看板 · UPPH与不良品率追踪</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-    </script>
+    <title>生产数据看板 v2.5.9</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --bg: #f2f2f7;
-            --card-bg: #ffffff;
-            --border: #e0e0e0;
-            --blue: #007AFF;
-            --red: #FF3B30;
-            --orange: #FF9500;
-            --green: #34C759;
-            --purple: #AF52DE;
-            --teal: #5AC8FA;
-            --pink: #FF2D55;
-            --text: #000000;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-            --radius-sm: 10px;
-            --radius-md: 16px;
+            --bg: #f2f2f7; --card-bg: #ffffff; --border: #e0e0e0;
+            --blue: #007AFF; --red: #FF3B30; --text: #000000;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
             --radius-lg: 20px;
-            --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Helvetica Neue', sans-serif;
-            --transition: 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: var(--font);
-            background-color: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 16px 12px 40px;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-font-smoothing: antialiased;
-        }
-        .app-container {
-            width: 100%;
-            max-width: 1100px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .nav-bar {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 14px 20px;
-            box-shadow: var(--shadow-sm);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            border: 1px solid var(--border);
-        }
-        .nav-left { display: flex; align-items: center; gap: 10px; }
-        .nav-left .icon-chart { font-size: 24px; }
-        .nav-left h1 { font-size: 18px; font-weight: 700; color: #000; }
-        .nav-right { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
-        .sync-indicator {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 11px; font-weight: 500; opacity: 0.7;
-            padding: 4px 10px; background: #f5f5f7; border-radius: 12px;
-        }
-        .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #34C759; transition: background 0.3s; }
-        .sync-dot.syncing { background: #FF9500; animation: pulse 0.8s infinite; }
-        .sync-dot.error { background: #FF3B30; }
-        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
-        .maker-info { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.3; }
-        .maker-info .version-line { font-weight: 700; font-size: 12px; }
-        .chart-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px 14px 10px; box-shadow: var(--shadow-md); border: 1px solid var(--border); }
-        .chart-wrapper { width: 100%; height: 400px; }
-        .chart-wrapper canvas { width: 100% !important; height: 100% !important; }
-        .chart-legend-hint { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 8px; font-size: 11px; }
-        .chart-legend-hint span { display: flex; align-items: center; gap: 4px; font-weight: 500; }
-        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-        .dot-blue { background: #007AFF; } .dot-red { background: #FF3B30; } .dot-orange { background: #FF9500; }
-        .dot-green { background: #34C759; } .dot-purple { background: #AF52DE; } .dot-teal { background: #5AC8FA; } .dot-pink { background: #FF2D55; }
-        .data-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px 14px; box-shadow: var(--shadow-md); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
-        .section-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-        .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
-        .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-        .search-box { display: flex; align-items: center; gap: 8px; background: #f5f5f7; border-radius: 20px; padding: 6px 14px; border: 1px solid #d0d0d0; max-width: 180px; }
-        .search-box input { border: none; background: transparent; outline: none; font-size: 13px; font-family: var(--font); color: #000; width: 100%; min-width: 80px; }
-        .search-box input::placeholder { color: #8e8e93; }
-        .search-icon { font-size: 14px; opacity: 0.6; }
-        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 24px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; color: #fff; background: var(--blue); transition: all var(--transition); font-family: var(--font); white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25); }
-        .btn:hover { background: #0066d6; transform: translateY(-1px); }
-        .btn:active { transform: scale(0.96); }
-        .btn-outline { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); box-shadow: none; }
-        .btn-outline:hover { background: #e8f0fe; }
-        .btn-delete { background: #fff; color: #000; border: 1.5px solid #d0d0d0; box-shadow: none; padding: 7px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
-        .btn-delete:hover { background: #f5f5f5; }
-        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fafafa; }
-        .table-scroll::-webkit-scrollbar { height: 5px; }
-        .table-scroll::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1050px; font-size: 13px; color: #000; }
-        table thead th { background: #f5f5f7; padding: 11px 6px; text-align: center; font-weight: 700; font-size: 11px; border-bottom: 2px solid #d0d0d0; white-space: nowrap; }
-        table tbody td { padding: 7px 4px; text-align: center; border-bottom: 1px solid #ececec; background: #fff; }
-        table tbody tr:hover td { background: #f9f9fb; }
-        table input[type="date"], table input[type="number"] { width: 100%; min-width: 60px; max-width: 120px; padding: 8px 4px; border: 1.5px solid #dcdcdc; border-radius: 8px; font-size: 12px; font-family: var(--font); color: #000; text-align: center; transition: all var(--transition); -webkit-appearance: none; }
-        table input[type="date"] { min-width: 115px; max-width: 135px; cursor: pointer; }
-        table input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.12); }
-        .cell-calculated { display: inline-block; padding: 7px 8px; border-radius: 8px; font-weight: 600; font-size: 13px; color: #000; min-width: 50px; }
-        .cell-calculated.total-defect { background: #f5e6f5; } .cell-calculated.rate { background: #fff3e8; }
-        .cell-calculated.upph { background: #eaf7ee; } .cell-calculated.price { background: #e8f0fe; }
-        .no-data-msg { text-align: center; padding: 30px; font-size: 14px; font-weight: 500; opacity: 0.6; }
-        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-120px); background: #1c1c1e; color: #fff; padding: 10px 22px; border-radius: 24px; font-size: 14px; font-weight: 600; z-index: 9999; pointer-events: none; opacity: 0; transition: all 0.35s cubic-bezier(0.25,0.1,0.25,1); font-family: var(--font); }
-        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-        @media (max-width: 750px) {
-            .chart-wrapper { height: 280px; }
-            .btn { padding: 8px 12px; font-size: 12px; }
-            table { font-size: 11px; min-width: 850px; }
-            .search-box { max-width: 120px; }
-        }
+        *{ margin:0; padding:0; box-sizing:border-box; }
+        body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
+        .app{ width:100%; max-width:1400px; display:flex; flex-direction:column; gap:16px; }
+
+        .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; box-shadow:var(--shadow-sm); border:1px solid var(--border); }
+        .tab{ padding:8px 16px; border-radius:20px; background:#f0f0f3; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text); white-space:nowrap; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+        .tab.active{ background:var(--blue); color:#fff; }
+        .tab:hover:not(.active){ background:#e5e5ea; }
+        .tab .tab-name{ max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+        .tab .edit-tab{ font-size:12px; opacity:0.5; cursor:pointer; margin-left:4px; }
+        .tab .close-tab{ margin-left:6px; font-weight:400; opacity:0.6; cursor:pointer; }
+        .add-tab-btn{ padding:8px 16px; border-radius:20px; background:transparent; font-size:20px; cursor:pointer; border:2px dashed #ccc; color:#888; font-weight:600; min-width:44px; height:40px; display:flex; align-items:center; justify-content:center; }
+        .add-tab-btn:hover{ border-color:var(--blue); color:var(--blue); }
+
+        .nav-bar{ background:var(--card-bg); border-radius:var(--radius-lg); padding:14px 20px; box-shadow:var(--shadow-sm); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; border:1px solid var(--border); }
+        .maker-info{ font-size:11px; opacity:0.8; text-align:right; }
+
+        .chart-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px 10px; box-shadow:var(--shadow-md); border:1px solid var(--border); }
+        .chart-wrapper{ height:400px; }
+        .toggle-panel{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; font-size:12px; align-items:center; }
+        .toggle-panel label{ display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+        .legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; }
+
+        .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; box-shadow:var(--shadow-md); border:1px solid var(--border); }
+        .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+        .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
+        table{ width:100%; border-collapse:collapse; font-size:12px; color:#000; min-width:1200px; }
+        th{ background:#f5f5f7; padding:8px 4px; font-size:11px; font-weight:700; border-bottom:2px solid #d0d0d0; white-space:nowrap; }
+        td{ padding:6px 4px; text-align:center; border-bottom:1px solid #ececec; }
+        td.process-name{ font-weight:600; background:#fafafa; }
+        input[type="number"]{ width:65px; padding:6px 4px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:12px; text-align:center; font-family:var(--font); }
+        .calc-cell{ font-weight:600; white-space:nowrap; }
+        .summary-row td{ background:#fff9e6; font-weight:700; }
+        .no-data-msg{ text-align:center; padding:20px; opacity:0.6; }
+        .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
+        .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+        .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; }
+        .btn-delete{ background:#fff; color:#000; border:1.5px solid #d0d0d0; padding:5px 10px; border-radius:20px; font-size:12px; cursor:pointer; }
+        .sync-indicator { display:flex; align-items:center; gap:6px; font-size:12px; margin-left:12px; }
+        .sync-dot { width:8px; height:8px; border-radius:50%; background:#34C759; }
+        .sync-dot.syncing { background:#FF9500; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @media (max-width:750px){ .chart-wrapper{ height:280px; } }
     </style>
 </head>
 <body>
-<div class="app-container">
+<div class="app">
+    <div class="tabs-bar" id="tabsBar"></div>
     <div class="nav-bar">
-        <div class="nav-left"><span class="icon-chart">📊</span><h1>生产数据看板</h1></div>
-        <div class="nav-right">
-            <div class="sync-indicator" id="syncIndicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-            <div class="maker-info"><span>软件制作人：陈港华</span><span>制作日期：2021-12-7</span><span class="version-line">V3.1 · 实时同步</span></div>
+        <h2>生产数据看板</h2>
+        <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+            <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
+            <div class="maker-info">网页制作人：陈港华 · 2021-12-7 · v2.5.9</div>
         </div>
     </div>
     <div class="chart-card">
-        <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
-        <div class="chart-legend-hint">
-            <span><span class="dot dot-blue"></span>生产数量</span>
-            <span><span class="dot dot-purple"></span>外观不良</span>
-            <span><span class="dot dot-teal"></span>功能不良</span>
-            <span><span class="dot dot-red"></span>不良品总数</span>
-            <span><span class="dot dot-orange"></span>不良品率(%)</span>
-            <span><span class="dot dot-green"></span>UPPH</span>
-            <span><span class="dot dot-pink"></span>单价(元)</span>
+        <div class="toggle-panel" id="togglePanel">
+            <span style="font-weight:600; margin-right:8px;">产量线：</span>
+            <label><input type="checkbox" checked data-process="后焊"> 后焊</label>
+            <label><input type="checkbox" checked data-process="组装"> 组装</label>
+            <label><input type="checkbox" checked data-process="包装"> 包装</label>
+            <label><input type="checkbox" checked data-process="total"> 总产量</label>
+            <span style="margin-left:16px; font-weight:600;">其他：</span>
+            <label><input type="checkbox" checked data-dataset="defect"> 外观不良</label>
+            <label><input type="checkbox" checked data-dataset="func"> 功能不良</label>
+            <label><input type="checkbox" checked data-dataset="totalDefect"> 不良品总数</label>
+            <label><input type="checkbox" checked data-dataset="rate"> 不良品率</label>
+            <label><input type="checkbox" checked data-dataset="upph"> UPPH</label>
+            <label><input type="checkbox" checked data-dataset="price"> 总单价</label>
         </div>
+        <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
     </div>
     <div class="data-card">
         <div class="section-header">
-            <div class="section-title"><span class="icon">📋</span>每日生产记录</div>
-            <div class="toolbar">
-                <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="searchInput" placeholder="按日期筛选..." autocomplete="off"></div>
-                <button class="btn btn-outline" id="btnRefresh">🔄 刷新</button>
-                <button class="btn" id="btnAdd">＋ 添加</button>
-            </div>
+            <span style="font-weight:700;">每日生产记录</span>
+            <button class="btn" id="btnAdd">＋ 添加一天</button>
         </div>
-        <div class="table-scroll" id="tableScroll">
-            <table><thead><tr><th>日期</th><th>生产数量</th><th>外观不良</th><th>功能不良</th><th>不良品总数</th><th>不良品率</th><th>人数</th><th>工时(h)</th><th>UPPH</th><th>单价(元)</th><th>操作</th></tr></thead><tbody id="tableBody"></tbody></table>
+        <div class="table-scroll">
+            <table id="dataTable">
+                <thead><tr>
+                    <th>日期</th><th>工序</th><th>生产数量</th><th>外观不良</th><th>功能不良</th><th>不良品率</th>
+                    <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
+                </tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
         </div>
-        <div class="no-data-msg" id="noDataMsg" style="display:none;">暂无记录，点击"添加"开始录入</div>
+        <div id="noDataMsg" style="display:none;">暂无数据，点击“添加一天”开始</div>
     </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -167,228 +111,467 @@
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    const tableBody = document.getElementById('tableBody');
-    const noDataMsg = document.getElementById('noDataMsg');
-    const tableScroll = document.getElementById('tableScroll');
-    const btnAdd = document.getElementById('btnAdd');
-    const btnRefresh = document.getElementById('btnRefresh');
-    const toastEl = document.getElementById('toast');
-    const chartCanvas = document.getElementById('mainChart');
-    const searchInput = document.getElementById('searchInput');
-    const syncDot = document.getElementById('syncDot');
-    const syncText = document.getElementById('syncText');
-    
-    let records = [];
+
+    let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
+    let currentBoard = boards[0];
+    let records = {};
     let chartInstance = null;
-    let debounceTimer = null;
-    let isRenderingTable = false;
-    let filterText = '';
     let pendingSync = false;
 
-    function setSyncStatus(s) {
-        syncDot.className = 'sync-dot';
-        if(s==='syncing') { syncDot.classList.add('syncing'); syncText.textContent='同步中...'; }
-        else if(s==='connected') { syncText.textContent='已连接'; }
-        else if(s==='error') { syncDot.classList.add('error'); syncText.textContent='连接失败'; }
-        else { syncDot.classList.add('error'); syncText.textContent='离线'; }
-    }
-    function showToast(msg, d=2000) {
-        if(window.toastTimer) clearTimeout(window.toastTimer);
-        toastEl.textContent=msg; toastEl.classList.add('show');
-        window.toastTimer=setTimeout(()=>{toastEl.classList.remove('show');},d);
-    }
-    function calcTotalDefect(c,f) { return (parseFloat(c)||0)+(parseFloat(f)||0); }
-    function calcDefectRate(p,t) { const pp=parseFloat(p)||0; if(pp<=0)return null; return (t/pp)*100; }
-    function calcUPPH(p,w,h) { const pp=parseFloat(p)||0; const ww=parseFloat(w)||0; const hh=parseFloat(h)||0; const d=ww*hh; if(d<=0)return null; return pp/d; }
-    function calcPrice(h,p) { const hh=parseFloat(h)||0; const pp=parseFloat(p)||0; if(pp<=0)return null; return (hh*20)/pp; }
-    function fmtRate(v){ return v===null||v===undefined||isNaN(v)?'-':v.toFixed(2)+'%'; }
-    function fmtUPPH(v){ return v===null||v===undefined||isNaN(v)?'-':v.toFixed(2); }
-    function fmtPrice(v){ return v===null||v===undefined||isNaN(v)?'-':'¥'+v.toFixed(2); }
+    const tabsBar = document.getElementById('tabsBar');
+    const tableBody = document.getElementById('tableBody');
+    const noDataMsg = document.getElementById('noDataMsg');
+    const toastEl = document.getElementById('toast');
+    const chartCanvas = document.getElementById('mainChart');
+    const syncDot = document.getElementById('syncDot');
+    const syncText = document.getElementById('syncText');
 
-    async function loadFromSupabase() {
+    function setSyncStatus(status) {
+        syncDot.className = 'sync-dot';
+        if (status === 'syncing') { syncDot.classList.add('syncing'); syncText.textContent = '同步中...'; }
+        else if (status === 'connected') { syncText.textContent = '已连接'; }
+        else { syncDot.classList.add('error'); syncText.textContent = '离线'; }
+    }
+
+    function showToast(msg) {
+        toastEl.textContent = msg; toastEl.classList.add('show');
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2000);
+    }
+
+    async function loadBoardData(board) {
         setSyncStatus('syncing');
         try {
-            const {data,error}=await supabase.from('production_records').select('*').order('date',{ascending:true});
-            if(error)throw error;
-            records = data ? data.map(r=>({id:r.id,date:r.date,productionQty:r.production_qty||0,cosmeticDefect:r.cosmetic_defect||0,functionalDefect:r.functional_defect||0,workers:r.workers||0,hours:r.hours||0})) : [];
+            const { data, error } = await supabase
+                .from('production_records')
+                .select('*')
+                .eq('board', board)
+                .order('date', { ascending: true });
+            if (error) throw error;
+            records[board] = data ? data.map(r => ({
+                id: r.id,
+                date: r.date,
+                process: r.process,
+                production: r.production_qty || 0,
+                cosmeticDefect: r.cosmetic_defect || 0,
+                functionalDefect: r.functional_defect || 0,
+                workers: r.workers || 0,
+                dailyHours: r.daily_hours || 0
+            })) : [];
             setSyncStatus('connected');
-        } catch(e) { console.error(e); setSyncStatus('error'); records=[]; }
+        } catch (e) {
+            console.error(e);
+            setSyncStatus('error');
+            records[board] = [];
+        }
     }
 
-    async function saveRecord(r) {
-        const d={date:r.date,production_qty:r.productionQty,cosmetic_defect:r.cosmeticDefect,functional_defect:r.functionalDefect,workers:r.workers,hours:r.hours};
-        const {data,error}=await supabase.from('production_records').upsert(d,{onConflict:'date'}).select().single();
-        if(error)throw error;
-        return data;
+    async function saveBoardRecords(board) {
+        const rows = records[board] || [];
+        if (!rows.length) return;
+        const toUpsert = rows.map(r => ({
+            date: r.date,
+            process: r.process,
+            board: board,
+            production_qty: r.production,
+            cosmetic_defect: r.cosmeticDefect,
+            functional_defect: r.functionalDefect,
+            workers: r.workers,
+            daily_hours: r.dailyHours
+        }));
+        const { error } = await supabase.from('production_records').upsert(toUpsert, { onConflict: 'date, process, board' });
+        if (error) console.error(error);
     }
 
-    async function deleteRecord(id) {
-        const {error}=await supabase.from('production_records').delete().eq('id',id);
-        if(error)throw error;
+    async function deleteRecordFromCloud(id) {
+        await supabase.from('production_records').delete().eq('id', id);
     }
 
-    function subscribeRealtime() {
-        supabase.channel('production_changes')
-            .on('postgres_changes',{event:'*',schema:'public',table:'production_records'},()=>{
-                if(pendingSync)return;
-                loadFromSupabase().then(()=>{renderTable();updateChart();});
-            }).subscribe((s)=>{ if(s==='SUBSCRIBED')setSyncStatus('connected'); else if(s==='CHANNEL_ERROR')setSyncStatus('error'); });
+    async function handleInput(e) {
+        const el = e.target;
+        const date = el.dataset.date;
+        const process = el.dataset.process;
+        const field = el.dataset.field;
+        const value = parseFloat(el.value) || 0;
+
+        let boardData = records[currentBoard] || [];
+        let row = boardData.find(r => r.date === date && r.process === process);
+        if (!row) return;
+        row[field] = value;
+        updateRowCalcDOM(date, process);
+        refreshSummaryRow(date);
+        pendingSync = true;
+        await saveBoardRecords(currentBoard);
+        pendingSync = false;
+        updateChart();
     }
 
-    function getFiltered() {
-        if(!filterText.trim())return records;
-        const l=filterText.trim().toLowerCase();
-        return records.filter(r=>(r.date||'').toLowerCase().includes(l));
+    function updateRowCalcDOM(date, process) {
+        const row = (records[currentBoard] || []).find(r => r.date === date && r.process === process);
+        if (!row) return;
+        const tr = document.getElementById(`row-${date}-${process}`);
+        if (!tr) return;
+        const workers = row.workers, dailyHours = row.dailyHours;
+        const totalWorkHours = workers * dailyHours;
+        const defectTotal = row.cosmeticDefect + row.functionalDefect;
+        const defectRate = row.production > 0 ? (defectTotal / row.production * 100).toFixed(2) : '-';
+        const avgHourProd = dailyHours > 0 ? row.production / dailyHours : 0;
+        const upph = (workers > 0 && dailyHours > 0 && row.production > 0) ? (row.production / (workers * dailyHours)).toFixed(2) : '-';
+        const unitPrice = row.production > 0 ? ((dailyHours * 20) / row.production).toFixed(2) : '-';
+
+        tr.querySelector('.calc-rate').textContent = defectRate + (defectRate !== '-' ? '%' : '');
+        tr.querySelector('.calc-total-hours').textContent = totalWorkHours.toFixed(1);
+        tr.querySelector('.calc-avg-hour').textContent = avgHourProd.toFixed(2);
+        tr.querySelector('.calc-upph').textContent = upph;
+        tr.querySelector('.calc-unit-price').textContent = unitPrice !== '-' ? '¥' + unitPrice : '-';
     }
 
-    function renderTable() {
-        isRenderingTable=true; tableBody.innerHTML='';
-        const f=getFiltered();
-        if(!f.length){ noDataMsg.style.display='block'; tableScroll.style.display='none'; isRenderingTable=false; return; }
-        noDataMsg.style.display='none'; tableScroll.style.display='block';
-        f.forEach(r=>{
-            const t=calcTotalDefect(r.cosmeticDefect,r.functionalDefect);
-            const rate=calcDefectRate(r.productionQty,t);
-            const upph=calcUPPH(r.productionQty,r.workers,r.hours);
-            const price=calcPrice(r.hours,r.productionQty);
-            const tr=document.createElement('tr');
-            tr.setAttribute('data-record-id',r.id);
-            tr.innerHTML=`<td><input type="date" class="inp-date" value="${r.date||''}" data-field="date" data-id="${r.id}"></td>
-            <td><input type="number" class="inp-num inp-prod" value="${r.productionQty??0}" data-field="productionQty" data-id="${r.id}"></td>
-            <td><input type="number" class="inp-num inp-cosmetic" value="${r.cosmeticDefect??0}" data-field="cosmeticDefect" data-id="${r.id}"></td>
-            <td><input type="number" class="inp-num inp-functional" value="${r.functionalDefect??0}" data-field="functionalDefect" data-id="${r.id}"></td>
-            <td><span class="cell-calculated total-defect">${t}</span></td>
-            <td><span class="cell-calculated rate">${fmtRate(rate)}</span></td>
-            <td><input type="number" class="inp-num inp-workers" value="${r.workers??0}" data-field="workers" data-id="${r.id}"></td>
-            <td><input type="number" class="inp-num inp-hours" value="${r.hours??0}" step="0.5" data-field="hours" data-id="${r.id}"></td>
-            <td><span class="cell-calculated upph">${fmtUPPH(upph)}</span></td>
-            <td><span class="cell-calculated price">${fmtPrice(price)}</span></td>
-            <td><button class="btn-delete btn-del-row" data-id="${r.id}">🗑</button></td>`;
-            tableBody.appendChild(tr);
+    function refreshSummaryRow(date) {
+        const rows = (records[currentBoard] || []).filter(r => r.date === date);
+        if (!rows.length) return;
+        let totalProd = 0, totalCosm = 0, totalFunc = 0, totalWorkers = 0, totalDailyHours = 0, totalPrice = 0, totalWorkHours = 0;
+        rows.forEach(r => {
+            totalProd += r.production;
+            totalCosm += r.cosmeticDefect;
+            totalFunc += r.functionalDefect;
+            totalWorkers += r.workers;
+            totalDailyHours += r.dailyHours;
+            totalWorkHours += r.workers * r.dailyHours;
+            if (r.production > 0) totalPrice += (r.dailyHours * 20) / r.production;
         });
-        bindEvents(); isRenderingTable=false;
+        const totalDefect = totalCosm + totalFunc;
+        const rate = totalProd > 0 ? (totalDefect / totalProd * 100).toFixed(2) : '-';
+        const avgHourProdSum = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
+        const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)).toFixed(2) : '-';
+
+        const summaryRow = document.getElementById(`summary-${date}`);
+        if (summaryRow) {
+            summaryRow.querySelector('.sum-total-prod').textContent = totalProd;
+            summaryRow.querySelector('.sum-cosmetic').textContent = totalCosm;
+            summaryRow.querySelector('.sum-func').textContent = totalFunc;
+            summaryRow.querySelector('.sum-rate').textContent = rate + (rate !== '-' ? '%' : '');
+            summaryRow.querySelector('.sum-workers').textContent = totalWorkers;
+            summaryRow.querySelector('.sum-dailyhours').textContent = totalDailyHours.toFixed(1);
+            summaryRow.querySelector('.sum-totalhours').textContent = totalWorkHours.toFixed(1);
+            summaryRow.querySelector('.sum-avg-hour-prod').textContent = avgHourProdSum.toFixed(2);
+            summaryRow.querySelector('.sum-upph').textContent = upphSum;
+            summaryRow.querySelector('.sum-total-price').textContent = '¥' + totalPrice.toFixed(2);
+        }
     }
 
-    function bindEvents() {
-        tableBody.querySelectorAll('input').forEach(inp=>{
-            const n=inp.cloneNode(true); inp.parentNode.replaceChild(n,inp);
-            n.addEventListener('input',function(){handleInput(this);});
-            n.addEventListener('change',function(){handleBlur(this);});
+    async function deleteRow(date, process) {
+        const row = (records[currentBoard] || []).find(r => r.date === date && r.process === process);
+        if (!row) return;
+        if (row.id) await deleteRecordFromCloud(row.id);
+        records[currentBoard] = records[currentBoard].filter(r => !(r.date === date && r.process === process));
+    }
+
+    async function deleteDate(date) {
+        const rows = (records[currentBoard] || []).filter(r => r.date === date);
+        for (const r of rows) {
+            if (r.id) await deleteRecordFromCloud(r.id);
+        }
+        records[currentBoard] = records[currentBoard].filter(r => r.date !== date);
+    }
+
+    async function renderTable() {
+        const boardData = records[currentBoard] || [];
+        tableBody.innerHTML = '';
+        if (!boardData.length) {
+            noDataMsg.style.display = 'block';
+            document.getElementById('dataTable').style.display = 'none';
+            return;
+        }
+        noDataMsg.style.display = 'none';
+        document.getElementById('dataTable').style.display = '';
+
+        const grouped = {};
+        boardData.forEach(r => {
+            if (!grouped[r.date]) grouped[r.date] = [];
+            grouped[r.date].push(r);
         });
-        tableBody.querySelectorAll('.btn-del-row').forEach(b=>{
-            const n=b.cloneNode(true); b.parentNode.replaceChild(n,b);
-            n.addEventListener('click',function(){handleDelete(parseInt(this.dataset.id));});
+        const sortedDates = Object.keys(grouped).sort();
+
+        let html = '';
+        sortedDates.forEach(date => {
+            const rows = grouped[date].sort((a,b) => ['后焊','组装','包装'].indexOf(a.process) - ['后焊','组装','包装'].indexOf(b.process));
+            let totalProd = 0, totalCosm = 0, totalFunc = 0, totalWorkers = 0, totalDailyHours = 0, totalPrice = 0, totalWorkHours = 0;
+
+            rows.forEach(r => {
+                const workers = r.workers, dailyHours = r.dailyHours;
+                const workHours = workers * dailyHours;
+                totalProd += r.production; totalCosm += r.cosmeticDefect; totalFunc += r.functionalDefect;
+                totalWorkers += workers; totalDailyHours += dailyHours; totalWorkHours += workHours;
+                if (r.production > 0) totalPrice += (dailyHours * 20) / r.production;
+
+                const defectTotal = r.cosmeticDefect + r.functionalDefect;
+                const defectRate = r.production > 0 ? (defectTotal / r.production * 100).toFixed(2) : '-';
+                const avgHourProd = dailyHours > 0 ? r.production / dailyHours : 0;
+                const upph = (workers > 0 && dailyHours > 0 && r.production > 0) ? (r.production / (workers * dailyHours)).toFixed(2) : '-';
+                const unitPrice = r.production > 0 ? ((dailyHours * 20) / r.production).toFixed(2) : '-';
+
+                html += `<tr id="row-${date}-${r.process}">
+                    <td>${date}</td><td class="process-name">${r.process}</td>
+                    <td><input type="number" class="inp-production" value="${r.production}" data-date="${date}" data-process="${r.process}" data-field="production"></td>
+                    <td><input type="number" class="inp-cosmetic" value="${r.cosmeticDefect}" data-date="${date}" data-process="${r.process}" data-field="cosmeticDefect"></td>
+                    <td><input type="number" class="inp-functional" value="${r.functionalDefect}" data-date="${date}" data-process="${r.process}" data-field="functionalDefect"></td>
+                    <td class="calc-cell calc-rate">${defectRate}${defectRate !== '-' ? '%' : ''}</td>
+                    <td><input type="number" class="inp-workers" value="${workers}" data-date="${date}" data-process="${r.process}" data-field="workers"></td>
+                    <td><input type="number" class="inp-dailyhours" value="${dailyHours}" data-date="${date}" data-process="${r.process}" data-field="dailyHours"></td>
+                    <td class="calc-cell calc-total-hours">${workHours.toFixed(1)}</td>
+                    <td class="calc-cell calc-avg-hour">${avgHourProd.toFixed(2)}</td>
+                    <td class="calc-cell calc-upph">${upph}</td>
+                    <td class="calc-cell calc-unit-price">${unitPrice !== '-' ? '¥' + unitPrice : '-'}</td>
+                    <td><button class="btn-delete delete-process" data-date="${date}" data-process="${r.process}">🗑</button></td>
+                </tr>`;
+            });
+
+            const totalDefect = totalCosm + totalFunc;
+            const rate = totalProd > 0 ? (totalDefect / totalProd * 100).toFixed(2) : '-';
+            const avgHourProdSum = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
+            const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)).toFixed(2) : '-';
+
+            html += `<tr class="summary-row" id="summary-${date}">
+                <td colspan="2" style="text-align:right;">${date} 汇总</td>
+                <td class="sum-total-prod"><strong>${totalProd}</strong></td>
+                <td class="sum-cosmetic">${totalCosm}</td>
+                <td class="sum-func">${totalFunc}</td>
+                <td class="sum-rate">${rate}${rate !== '-' ? '%' : ''}</td>
+                <td class="sum-workers">${totalWorkers}</td>
+                <td class="sum-dailyhours">${totalDailyHours.toFixed(1)}</td>
+                <td class="sum-totalhours">${totalWorkHours.toFixed(1)}</td>
+                <td class="sum-avg-hour-prod">${avgHourProdSum.toFixed(2)}</td>
+                <td class="sum-upph">${upphSum}</td>
+                <td class="sum-total-price"><strong>¥${totalPrice.toFixed(2)}</strong></td>
+                <td><button class="btn-delete delete-date" data-date="${date}">删全天</button></td>
+            </tr>`;
+        });
+
+        tableBody.innerHTML = html;
+        bindTableEvents();
+    }
+
+    function bindTableEvents() {
+        document.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', handleInput);
+        });
+        document.querySelectorAll('.delete-process').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const date = btn.dataset.date, process = btn.dataset.process;
+                if (!confirm(`删除 ${date} ${process} 记录？`)) return;
+                await deleteRow(date, process);
+                await renderTable();
+                updateChart();
+            });
+        });
+        document.querySelectorAll('.delete-date').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const date = btn.dataset.date;
+                if (!confirm(`删除 ${date} 所有记录？`)) return;
+                await deleteDate(date);
+                await renderTable();
+                updateChart();
+            });
         });
     }
 
-    function updateCalcRow(rid) {
-        const tr=tableBody.querySelector(`tr[data-record-id="${rid}"]`); if(!tr)return;
-        const p=parseFloat(tr.querySelector('.inp-prod')?.value)||0;
-        const c=parseFloat(tr.querySelector('.inp-cosmetic')?.value)||0;
-        const f=parseFloat(tr.querySelector('.inp-functional')?.value)||0;
-        const w=parseFloat(tr.querySelector('.inp-workers')?.value)||0;
-        const h=parseFloat(tr.querySelector('.inp-hours')?.value)||0;
-        const t=c+f;
-        tr.querySelector('.total-defect').textContent=t;
-        tr.querySelector('.rate').textContent=fmtRate(calcDefectRate(p,t));
-        tr.querySelector('.upph').textContent=fmtUPPH(calcUPPH(p,w,h));
-        tr.querySelector('.price').textContent=fmtPrice(calcPrice(h,p));
-    }
-
-    function handleInput(inp) {
-        if(isRenderingTable)return;
-        updateCalcRow(parseInt(inp.dataset.id));
-        if(debounceTimer)clearTimeout(debounceTimer);
-        debounceTimer=setTimeout(()=>{syncRow(parseInt(inp.dataset.id));},800);
-    }
-    function handleBlur(inp) {
-        if(debounceTimer)clearTimeout(debounceTimer);
-        syncRow(parseInt(inp.dataset.id));
-    }
-
-    async function syncRow(rid) {
-        const tr=tableBody.querySelector(`tr[data-record-id="${rid}"]`); if(!tr)return;
-        const date=tr.querySelector('.inp-date')?.value; if(!date)return;
-        const r={id:rid,date,productionQty:parseFloat(tr.querySelector('.inp-prod')?.value)||0,
-            cosmeticDefect:parseFloat(tr.querySelector('.inp-cosmetic')?.value)||0,
-            functionalDefect:parseFloat(tr.querySelector('.inp-functional')?.value)||0,
-            workers:parseFloat(tr.querySelector('.inp-workers')?.value)||0,
-            hours:parseFloat(tr.querySelector('.inp-hours')?.value)||0};
-        try{ pendingSync=true; setSyncStatus('syncing'); await saveRecord(r); setSyncStatus('connected'); }
-        catch{ setSyncStatus('error'); showToast('⚠️同步失败'); }
-        finally{ pendingSync=false; updateChart(); }
-    }
-
-    async function handleDelete(rid) {
-        if(!confirm('确定删除？'))return;
-        try{ setSyncStatus('syncing'); await deleteRecord(rid); await loadFromSupabase(); renderTable(); updateChart(); setSyncStatus('connected'); showToast('已删除'); }
-        catch{ setSyncStatus('error'); }
-    }
-
-    async function addRecord() {
-        const today=new Date().toISOString().split('T')[0];
-        if(records.some(r=>r.date===today)){ showToast('今日已有记录'); return; }
-        try{ setSyncStatus('syncing'); await saveRecord({date:today,productionQty:0,cosmeticDefect:0,functionalDefect:0,workers:0,hours:0});
-            await loadFromSupabase(); renderTable(); updateChart(); setSyncStatus('connected'); showToast('已添加'); }
-        catch{ setSyncStatus('error'); }
-    }
-
-    function updateChart() {
-        if(!chartInstance)initChart();
-        const d=prepareChartData();
-        chartInstance.data.labels=d.labels;
-        chartInstance.data.datasets[0].data=d.prod;
-        chartInstance.data.datasets[1].data=d.cosmetic;
-        chartInstance.data.datasets[2].data=d.functional;
-        chartInstance.data.datasets[3].data=d.total;
-        chartInstance.data.datasets[4].data=d.rate;
-        chartInstance.data.datasets[5].data=d.upph;
-        chartInstance.data.datasets[6].data=d.price;
-        chartInstance.update();
+    async function addDay() {
+        const today = new Date().toISOString().split('T')[0];
+        const existing = (records[currentBoard] || []).some(r => r.date === today);
+        if (existing) { showToast('今天已有数据'); return; }
+        const workers = prompt('输入当日人数（每行独立，可后续修改）：', '5');
+        const dailyHours = prompt('输入当日工时（小时）：', '8');
+        if (!workers || !dailyHours) return;
+        const w = parseFloat(workers), h = parseFloat(dailyHours);
+        if (isNaN(w) || isNaN(h)) return;
+        const newRows = ['后焊','组装','包装'].map(p => ({
+            date: today, process: p, production: 0, cosmeticDefect: 0, functionalDefect: 0,
+            workers: w, dailyHours: h
+        }));
+        records[currentBoard] = (records[currentBoard] || []).concat(newRows);
+        await saveBoardRecords(currentBoard);
+        await loadBoardData(currentBoard);
+        await renderTable();
+        updateChart();
+        showToast(`已添加 ${today}`);
     }
 
     function prepareChartData() {
-        const l=[],p=[],c=[],f=[],t=[],r=[],u=[],pr=[];
-        records.forEach(rr=>{
-            l.push(rr.date); p.push(rr.productionQty); c.push(rr.cosmeticDefect); f.push(rr.functionalDefect);
-            const tt=calcTotalDefect(rr.cosmeticDefect,rr.functionalDefect); t.push(tt);
-            const rate=calcDefectRate(rr.productionQty,tt); r.push(rate!==null?+rate.toFixed(2):null);
-            const upph=calcUPPH(rr.productionQty,rr.workers,rr.hours); u.push(upph!==null?+upph.toFixed(2):null);
-            const price=calcPrice(rr.hours,rr.productionQty); pr.push(price!==null?+price.toFixed(2):null);
+        const boardData = records[currentBoard] || [];
+        const dateMap = {};
+        boardData.forEach(r => {
+            if (!dateMap[r.date]) dateMap[r.date] = { 后焊:0, 组装:0, 包装:0, cosmetic:0, func:0, workers:0, dailyHours:0 };
+            dateMap[r.date][r.process] = (dateMap[r.date][r.process] || 0) + r.production;
+            dateMap[r.date].cosmetic += r.cosmeticDefect;
+            dateMap[r.date].func += r.functionalDefect;
+            dateMap[r.date].workers += r.workers;
+            dateMap[r.date].dailyHours += r.dailyHours;
         });
-        return {labels:l,prod:p,cosmetic:c,functional:f,total:t,rate:r,upph:u,price:pr};
+        const dates = Object.keys(dateMap).sort();
+        const 后焊=[], 组装=[], 包装=[], totalProd=[], cosmetic=[], func=[], totalDefect=[], defectRate=[], upph=[], totalPrice=[];
+        dates.forEach(d => {
+            const v = dateMap[d];
+            后焊.push(v.后焊); 组装.push(v.组装); 包装.push(v.包装);
+            const tp = v.后焊 + v.组装 + v.包装; totalProd.push(tp);
+            cosmetic.push(v.cosmetic); func.push(v.func);
+            const td = v.cosmetic + v.func; totalDefect.push(td);
+            defectRate.push(tp>0 ? +(td/tp*100).toFixed(2) : null);
+            upph.push(tp>0 && v.workers>0 && v.dailyHours>0 ? +(tp/(v.workers*v.dailyHours)).toFixed(2) : null);
+            let price = 0;
+            boardData.filter(r => r.date===d).forEach(r => { if(r.production>0) price += (r.dailyHours*20)/r.production; });
+            totalPrice.push(+price.toFixed(2));
+        });
+        return { dates, 后焊, 组装, 包装, totalProd, cosmetic, func, totalDefect, defectRate, upph, totalPrice };
+    }
+
+    function updateChart() {
+        if (!chartInstance) initChart();
+        const d = prepareChartData();
+        chartInstance.data.labels = d.dates;
+        const sets = chartInstance.data.datasets;
+        sets[0].data = d.后焊; sets[1].data = d.组装; sets[2].data = d.包装;
+        sets[3].data = d.totalProd; sets[4].data = d.cosmetic; sets[5].data = d.func;
+        sets[6].data = d.totalDefect; sets[7].data = d.defectRate; sets[8].data = d.upph; sets[9].data = d.totalPrice;
+        chartInstance.update();
     }
 
     function initChart() {
-        if(chartInstance)chartInstance.destroy();
-        const d=prepareChartData();
-        chartInstance=new Chart(chartCanvas,{type:'line',data:{labels:d.labels,datasets:[
-            {label:'生产数量',data:d.prod,borderColor:'#007AFF',borderWidth:2.5,tension:0.35,fill:true,pointRadius:4,yAxisID:'y'},
-            {label:'外观不良',data:d.cosmetic,borderColor:'#AF52DE',borderWidth:2.5,tension:0.35,fill:false,pointRadius:4,yAxisID:'y'},
-            {label:'功能不良',data:d.functional,borderColor:'#5AC8FA',borderWidth:2.5,tension:0.35,fill:false,pointRadius:4,yAxisID:'y'},
-            {label:'不良品总数',data:d.total,borderColor:'#FF3B30',borderWidth:2.5,borderDash:[4,2],tension:0.35,fill:false,pointRadius:4,yAxisID:'y'},
-            {label:'不良品率(%)',data:d.rate,borderColor:'#FF9500',borderWidth:2.5,borderDash:[6,2],tension:0.35,fill:false,pointRadius:4,yAxisID:'y1'},
-            {label:'UPPH',data:d.upph,borderColor:'#34C759',borderWidth:2.5,borderDash:[3,3],tension:0.35,fill:false,pointRadius:4,yAxisID:'y1'},
-            {label:'单价(元)',data:d.price,borderColor:'#FF2D55',borderWidth:2.5,borderDash:[5,3],tension:0.35,fill:false,pointRadius:4,yAxisID:'y1'},
-        ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-            plugins:{legend:{labels:{color:'#000',usePointStyle:true,boxWidth:10,font:{size:11}}}},
-            scales:{x:{grid:{display:false}},y:{type:'linear',position:'left',title:{display:true,text:'数量'},beginAtZero:true},
-                y1:{type:'linear',position:'right',title:{display:true,text:'比率/UPPH/单价'},grid:{display:false},beginAtZero:true}}}});
+        if (chartInstance) chartInstance.destroy();
+        const d = prepareChartData();
+        chartInstance = new Chart(chartCanvas, {
+            type: 'line',
+            data: {
+                labels: d.dates,
+                datasets: [
+                    { label:'后焊产量', data:d.后焊, borderColor:'#FF9500', tension:0.3, yAxisID:'y' },
+                    { label:'组装产量', data:d.组装, borderColor:'#34C759', tension:0.3, yAxisID:'y' },
+                    { label:'包装产量', data:d.包装, borderColor:'#007AFF', tension:0.3, yAxisID:'y' },
+                    { label:'总产量', data:d.totalProd, borderColor:'#000', borderWidth:3, tension:0.3, yAxisID:'y' },
+                    { label:'外观不良', data:d.cosmetic, borderColor:'#AF52DE', tension:0.3, yAxisID:'y' },
+                    { label:'功能不良', data:d.func, borderColor:'#5AC8FA', tension:0.3, yAxisID:'y' },
+                    { label:'不良品总数', data:d.totalDefect, borderColor:'#FF3B30', tension:0.3, yAxisID:'y' },
+                    { label:'不良品率', data:d.defectRate, borderColor:'#FF9500', borderDash:[5,2], tension:0.3, yAxisID:'y1' },
+                    { label:'UPPH', data:d.upph, borderColor:'#34C759', borderDash:[3,3], tension:0.3, yAxisID:'y1' },
+                    { label:'总单价', data:d.totalPrice, borderColor:'#FF2D55', borderDash:[6,2], tension:0.3, yAxisID:'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: true, position: 'top', labels: { color:'#000', usePointStyle:true, boxWidth:8, font:{size:11} } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { type:'linear', position:'left', title:{ display:true, text:'数量' }, beginAtZero:true },
+                    y1: { type:'linear', position:'right', title:{ display:true, text:'比率/UPPH/单价' }, grid:{ display:false }, beginAtZero:true }
+                }
+            }
+        });
+        bindToggleEvents();
     }
 
-    btnAdd.addEventListener('click',addRecord);
-    btnRefresh.addEventListener('click',async()=>{await loadFromSupabase();renderTable();updateChart();showToast('已刷新');});
-    searchInput.addEventListener('input',function(){filterText=this.value;renderTable();});
+    function bindToggleEvents() {
+        document.querySelectorAll('#togglePanel input[type=checkbox]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (!chartInstance) return;
+                if (cb.dataset.process) {
+                    const idx = { '后焊':0, '组装':1, '包装':2, 'total':3 }[cb.dataset.process];
+                    chartInstance.setDatasetVisibility(idx, cb.checked);
+                } else {
+                    const dsMap = { 'defect':4, 'func':5, 'totalDefect':6, 'rate':7, 'upph':8, 'price':9 };
+                    chartInstance.setDatasetVisibility(dsMap[cb.dataset.dataset], cb.checked);
+                }
+                chartInstance.update();
+            });
+        });
+    }
 
-    (async function init(){
-        await loadFromSupabase();
-        renderTable();
+    function renderTabs() {
+        tabsBar.innerHTML = boards.map(b => `
+            <button class="tab ${b===currentBoard?'active':''}" data-board="${b}">
+                <span class="tab-name">${b}</span>
+                <span class="edit-tab" title="重命名">✎</span>
+                ${boards.length>1?`<span class="close-tab" title="删除">×</span>`:''}
+            </button>
+        `).join('') + `<button class="add-tab-btn" title="添加新页面">+</button>`;
+
+        tabsBar.querySelectorAll('.tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
+                switchBoard(btn.dataset.board);
+            });
+        });
+        tabsBar.querySelectorAll('.edit-tab').forEach(span => {
+            span.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const old = span.parentElement.dataset.board;
+                const newName = prompt('新名称：', old);
+                if (newName && newName.trim() && newName !== old) {
+                    if (boards.includes(newName.trim())) { showToast('名称已存在'); return; }
+                    const data = records[old] || [];
+                    delete records[old];
+                    records[newName] = data;
+                    boards = boards.map(b => b===old ? newName.trim() : b);
+                    if (currentBoard === old) currentBoard = newName.trim();
+                    renderTabs(); renderTable(); updateChart();
+                    saveBoardRecords(newName);
+                }
+            });
+        });
+        tabsBar.querySelectorAll('.close-tab').forEach(span => {
+            span.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const board = span.parentElement.dataset.board;
+                if (!confirm(`删除页面“${board}”及其所有数据？`)) return;
+                const rows = records[board] || [];
+                for (const r of rows) if (r.id) await deleteRecordFromCloud(r.id);
+                boards = boards.filter(b => b !== board);
+                delete records[board];
+                if (currentBoard === board) currentBoard = boards[0];
+                renderTabs(); renderTable(); updateChart();
+            });
+        });
+        document.querySelector('.add-tab-btn').addEventListener('click', () => {
+            const name = prompt('新页面名称：');
+            if (!name || !name.trim()) return;
+            if (boards.includes(name.trim())) { showToast('已存在'); return; }
+            boards.push(name.trim());
+            currentBoard = name.trim();
+            records[currentBoard] = [];
+            renderTabs(); renderTable(); updateChart();
+            showToast(`页面“${currentBoard}”已创建`);
+        });
+    }
+
+    async function switchBoard(board) {
+        if (board === currentBoard) return;
+        currentBoard = board;
+        if (!records[currentBoard]) await loadBoardData(currentBoard);
+        renderTabs(); renderTable(); updateChart();
+        setSyncStatus('connected');
+    }
+
+    async function init() {
+        for (const b of boards) {
+            await loadBoardData(b);
+        }
+        currentBoard = boards[0];
+        renderTabs();
+        await renderTable();
         initChart();
         updateChart();
-        subscribeRealtime();
-        if(!records.length){noDataMsg.style.display='block';tableScroll.style.display='none';}
-    })();
+        setSyncStatus('connected');
+
+        supabase.channel('public:production_records')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
+                if (pendingSync) return;
+                await loadBoardData(currentBoard);
+                renderTable();
+                updateChart();
+            }).subscribe();
+    }
+
+    document.getElementById('btnAdd').addEventListener('click', addDay);
+    init();
 })();
 </script>
 </body>
