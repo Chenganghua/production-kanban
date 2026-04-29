@@ -3,303 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板 v2.5.9</title>
+    <title>生产数据看板</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --bg: #f2f2f7;
-            --card-bg: #ffffff;
-            --border: #e0e0e0;
-            --blue: #007AFF;
-            --red: #FF3B30;
-            --text: #000000;
+            --bg: #f2f2f7; --card-bg: #ffffff; --border: #e0e0e0;
+            --blue: #007AFF; --red: #FF3B30; --text: #000000;
             --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
             --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
             --radius-lg: 20px;
             --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
         }
-
-        * { margin:0; padding:0; box-sizing:border-box; }
-
-        body {
-            font-family: var(--font);
-            background: var(--bg);
-            color: var(--text);
-            padding: 16px 12px 40px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .app {
-            width: 100%;
-            max-width: 1400px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg);
-            padding-bottom: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .tabs-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 10px 16px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .tab {
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: #f0f0f3;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .tab.active { background: var(--blue); color: #fff; }
-        .tab:hover:not(.active) { background: #e5e5ea; }
-
-        .tab .edit-tab { font-size: 12px; opacity: 0.5; cursor: pointer; }
-        .tab .close-tab { font-weight: 400; opacity: 0.6; cursor: pointer; }
-
-        .add-tab-btn {
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: transparent;
-            font-size: 20px;
-            cursor: pointer;
-            border: 2px dashed #ccc;
-            color: #888;
-            font-weight: 600;
-            min-width: 44px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .add-tab-btn:hover { border-color: var(--blue); color: var(--blue); }
-
-        .nav-bar {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .board-title {
-            font-size: 18px;
-            font-weight: 700;
-            outline: none;
-            border: 1px solid transparent;
-            padding: 2px 8px;
-            border-radius: 8px;
-            min-width: 150px;
-        }
-
-        .board-title:hover { border-color: #ccc; }
-        .board-title:focus { border-color: var(--blue); background: #fff; }
-
-        .sync-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-
-        .sync-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #34C759;
-        }
-
-        .sync-dot.syncing {
-            background: #FF9500;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .chart-card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 16px 14px 10px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-md);
-        }
-
-        .chart-wrapper { height: 400px; }
-
-        .toggle-panel {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 8px;
-            font-size: 12px;
-            align-items: center;
-        }
-
-        .toggle-panel label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .data-card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 16px 14px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-md);
-        }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
-        .table-scroll {
-            overflow-x: auto;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: #fafafa;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            min-width: 1300px;
-        }
-
-        th {
-            background: #f5f5f7;
-            padding: 8px 4px;
-            font-size: 11px;
-            font-weight: 700;
-            border-bottom: 2px solid #d0d0d0;
-        }
-
-        td {
-            padding: 6px 4px;
-            text-align: center;
-            border-bottom: 1px solid #ececec;
-        }
-
-        td.process-name { font-weight: 600; background: #fafafa; }
-
-        input[type="number"] {
-            width: 70px;
-            padding: 6px 4px;
-            border: 1.5px solid #dcdcdc;
-            border-radius: 6px;
-            font-size: 12px;
-            text-align: center;
-            font-family: var(--font);
-        }
-
-        .calc-cell { font-weight: 600; }
-
-        .summary-row td { background: #fff9e6; font-weight: 700; }
-        .grand-total-row td { background: #e8f0fe; font-weight: 700; }
-
-        .btn {
-            padding: 8px 16px;
-            border-radius: 24px;
-            font-size: 14px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            background: var(--blue);
-            color: #fff;
-        }
-
-        .btn-danger { background: var(--red); }
-
-        .btn-delete {
-            background: #fff;
-            color: #000;
-            border: 1.5px solid #d0d0d0;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1c1c1e;
-            color: #fff;
-            padding: 10px 22px;
-            border-radius: 24px;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 9999;
-            opacity: 0;
-            transition: all 0.3s;
-            pointer-events: none;
-        }
-
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-        @media (max-width: 750px) {
-            .chart-wrapper { height: 280px; }
-        }
+        *{ margin:0; padding:0; box-sizing:border-box; }
+        body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
+        .app{ width:100%; max-width:1400px; display:flex; flex-direction:column; gap:16px; }
+        .sticky-header{ position:sticky; top:0; z-index:100; background:var(--bg); padding-bottom:8px; display:flex; flex-direction:column; gap:16px; }
+        .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+        .tab{ padding:8px 16px; border-radius:20px; background:#f0f0f3; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text); display:flex; align-items:center; gap:6px; transition:all 0.2s; }
+        .tab.active{ background:var(--blue); color:#fff; }
+        .tab:hover:not(.active){ background:#e5e5ea; }
+        .tab .edit-tab{ font-size:12px; opacity:0.5; cursor:pointer; }
+        .tab .close-tab{ font-weight:400; opacity:0.6; cursor:pointer; }
+        .add-tab-btn{ padding:8px 16px; border-radius:20px; background:transparent; font-size:20px; cursor:pointer; border:2px dashed #ccc; color:#888; font-weight:600; min-width:44px; height:40px; display:flex; align-items:center; justify-content:center; }
+        .add-tab-btn:hover{ border-color:var(--blue); color:var(--blue); }
+        .nav-bar{ background:var(--card-bg); border-radius:var(--radius-lg); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+        .board-title{ font-size:18px; font-weight:700; outline:none; border:1px solid transparent; padding:2px 8px; border-radius:8px; min-width:150px; }
+        .board-title:hover{ border-color:#ccc; }
+        .board-title:focus{ border-color:var(--blue); background:#fff; }
+        .sync-indicator{ display:flex; align-items:center; gap:6px; font-size:12px; }
+        .sync-dot{ width:8px; height:8px; border-radius:50%; background:#34C759; }
+        .sync-dot.syncing{ background:#FF9500; animation:pulse 1s infinite; }
+        @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .chart-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px 10px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
+        .chart-wrapper{ height:400px; }
+        .toggle-panel{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; font-size:12px; align-items:center; }
+        .toggle-panel label{ display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+        .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
+        .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+        .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
+        table{ width:100%; border-collapse:collapse; font-size:12px; min-width:1300px; }
+        th{ background:#f5f5f7; padding:8px 4px; font-size:11px; font-weight:700; border-bottom:2px solid #d0d0d0; }
+        td{ padding:6px 4px; text-align:center; border-bottom:1px solid #ececec; }
+        td.process-name{ font-weight:600; background:#fafafa; }
+        input[type="number"]{ width:70px; padding:6px 4px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:12px; text-align:center; font-family:var(--font); }
+        .calc-cell{ font-weight:600; }
+        .summary-row td{ background:#fff9e6; font-weight:700; }
+        .grand-total-row td{ background:#e8f0fe; font-weight:700; }
+        .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; }
+        .btn-danger{ background:var(--red); }
+        .btn-delete{ background:#fff; color:#000; border:1.5px solid #d0d0d0; padding:5px 10px; border-radius:20px; font-size:12px; cursor:pointer; }
+        .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
+        .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+        @media (max-width:750px){ .chart-wrapper{ height:280px; } }
     </style>
 </head>
 <body>
-
 <div class="app">
-
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
-
         <div class="nav-bar">
             <h2 class="board-title" contenteditable="true" id="boardTitle">生产数据看板</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="sync-indicator">
-                    <span class="sync-dot" id="syncDot"></span>
-                    <span id="syncText">连接中...</span>
-                </div>
-                <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-04-29 · v2.5.9</div>
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2026-4-29 · V2.5.9</div>
             </div>
         </div>
-
         <div class="chart-card">
             <div class="toggle-panel" id="togglePanel">
                 <span style="font-weight:600; margin-right:8px;">产量线：</span>
@@ -315,12 +84,9 @@
                 <label><input type="checkbox" checked data-dataset="upph"> UPPH</label>
                 <label><input type="checkbox" checked data-dataset="price"> 总单价</label>
             </div>
-            <div class="chart-wrapper">
-                <canvas id="mainChart"></canvas>
-            </div>
+            <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
     </div>
-
     <div class="data-card">
         <div class="section-header">
             <span style="font-weight:700;">每日生产记录</span>
@@ -331,455 +97,373 @@
         </div>
         <div class="table-scroll">
             <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>日期</th><th>工序</th><th>生产数量</th><th>外观不良</th><th>功能不良</th><th>不良品率</th>
-                        <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
-                    </tr>
-                </thead>
+                <thead><tr>
+                    <th>日期</th><th>工序</th><th>生产数量</th><th>外观不良</th><th>功能不良</th><th>不良品率</th>
+                    <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
+                </tr></thead>
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
     </div>
-
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
-(function () {
-    const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+(function() {
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let labelPages = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
-    let activePage = labelPages[0];
-    let allData = {};
-    let chartInstance = null;
-    let isUploading = false;
-    let saveTimer = null;
-    let chartTimer = null;
+    let users = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
+    let active = users[0];
+    let data = {};
+    let chart;
+    let pending = false;
+    let saveTimer, chartTimer;
 
     const tabsBar = document.getElementById('tabsBar');
-    const tableBody = document.getElementById('tableBody');
-    const toastEl = document.getElementById('toast');
-    const chartCanvas = document.getElementById('mainChart');
-    const syncDot = document.getElementById('syncDot');
-    const syncText = document.getElementById('syncText');
+    const tbody = document.getElementById('tableBody');
+    const toast = document.getElementById('toast');
+    const canvas = document.getElementById('mainChart');
+    const dot = document.getElementById('syncDot');
+    const txt = document.getElementById('syncText');
 
-    async function fetchPageData(page) {
-        syncDot.className = 'sync-dot syncing';
-        syncText.textContent = '同步中...';
+    function showMsg(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(window._t);
+        window._t = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    async function load(u) {
+        dot.className = 'sync-dot syncing'; txt.textContent = '同步中...';
         try {
-            const { data, error } = await supabase
-                .from('production_records')
-                .select('*')
-                .eq('board', page)
-                .order('date', { ascending: true });
+            const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
             if (error) throw error;
-            allData[page] = data ? data.map(r => ({
-                id: r.id,
-                date: r.date,
-                process: r.process,
-                production: r.production_qty || 0,
-                cosmeticDefect: r.cosmetic_defect || 0,
-                functionalDefect: r.functional_defect || 0,
-                workers: r.workers || 0,
-                dailyHours: r.daily_hours || 0
+            data[u] = rows ? rows.map(r => ({
+                id: r.id, date: r.date, process: r.process,
+                prod: r.production_qty || 0, cos: r.cosmetic_defect || 0,
+                func: r.functional_defect || 0, workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
-            syncDot.className = 'sync-dot';
-            syncText.textContent = '已连接';
-        } catch (e) {
-            console.error(e);
-            syncDot.className = 'sync-dot error';
-            syncText.textContent = '离线';
-            allData[page] = [];
-        }
+            dot.className = 'sync-dot'; txt.textContent = '已连接';
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线'; data[u] = []; }
     }
 
-    async function pushPageToCloud(page) {
-        const rows = allData[page] || [];
+    async function save(u) {
+        const rows = data[u] || [];
         if (!rows.length) return;
-        const toUpload = rows.map(r => ({
-            date: r.date,
-            process: r.process,
-            board: page,
-            production_qty: r.production,
-            cosmetic_defect: r.cosmeticDefect,
-            functional_defect: r.functionalDefect,
-            workers: r.workers,
-            daily_hours: r.dailyHours
-        }));
-        const result = await supabase.from('production_records').upsert(toUpload, { onConflict: 'date, process, board' });
-        if (result.error) console.error(result.error);
+        await db.from('production_records').upsert(rows.map(r => ({
+            date: r.date, process: r.process, board: u,
+            production_qty: r.prod, cosmetic_defect: r.cos, functional_defect: r.func,
+            workers: r.workers, daily_hours: r.hrs
+        })), { onConflict: 'date, process, board' });
     }
 
-    async function removeRowFromCloud(id) {
-        await supabase.from('production_records').delete().eq('id', id);
-    }
+    function upph(p, w, h) { return (w <= 0 || h <= 0 || p <= 0) ? 0 : p / (w * h); }
+    function rate(p, d) { return p <= 0 ? null : (d / p) * 100; }
+    function fmtR(v) { return v === null || isNaN(v) ? '-' : v.toFixed(2) + '%'; }
+    function fmtV(v, isP) { if (v === null || isNaN(v) || v <= 0) return '-'; return isP ? '¥' + v.toFixed(2) : v.toFixed(2); }
 
-    function defectRate(prod, defect) {
-        if (prod <= 0) return null;
-        return (defect / prod) * 100;
-    }
+    function render() {
+        const rows = data[active] || [];
+        tbody.innerHTML = '';
+        if (!rows.length) return;
 
-    function computeUPPH(prod, workers, hours) {
-        if (workers <= 0 || hours <= 0 || prod <= 0) return 0;
-        return prod / (workers * hours);
-    }
+        const grp = {};
+        rows.forEach(r => { if (!grp[r.date]) grp[r.date] = []; grp[r.date].push(r); });
+        const dates = Object.keys(grp).sort();
+        let h = '';
 
-    function formatRate(v) {
-        if (v === null || isNaN(v)) return '-';
-        return v.toFixed(2) + '%';
-    }
-
-    function formatValue(v, isPrice) {
-        if (v === null || isNaN(v) || v <= 0) return '-';
-        if (isPrice) return '¥' + v.toFixed(2);
-        return v.toFixed(2);
-    }
-
-    function drawTable() {
-        const pageRows = allData[activePage] || [];
-        tableBody.innerHTML = '';
-        if (!pageRows.length) return;
-
-        const grouped = {};
-        pageRows.forEach(r => {
-            if (!grouped[r.date]) grouped[r.date] = [];
-            grouped[r.date].push(r);
-        });
-
-        const dateList = Object.keys(grouped).sort();
-        let htmlRows = '';
-
-        dateList.forEach(date => {
-            const dayRows = grouped[date];
-            const processOrder = ['后焊', '组装', '包装'];
-            dayRows.sort((a, b) => processOrder.indexOf(a.process) - processOrder.indexOf(b.process));
-
-            let dayProd = 0, dayCosmetic = 0, dayFunc = 0, dayWorkers = 0, dayHours = 0, dayWorkHours = 0, dayPrice = 0;
-
-            dayRows.forEach(r => {
-                const workers = r.workers;
-                const hours = r.dailyHours;
-                const workHours = workers * hours;
-                const totalDefect = r.cosmeticDefect + r.functionalDefect;
-                const rate = defectRate(r.production, totalDefect);
-                const avgHour = hours > 0 ? r.production / hours : 0;
-                const upph = computeUPPH(r.production, workers, hours);
-                const unitPrice = upph > 0 ? 20 / upph : 0;
-
-                dayProd += r.production;
-                dayCosmetic += r.cosmeticDefect;
-                dayFunc += r.functionalDefect;
-                dayWorkers += workers;
-                dayHours += hours;
-                dayWorkHours += workHours;
-                if (upph > 0) dayPrice += unitPrice;
-
-                htmlRows += `<tr id="row-${date}-${r.process}">
-                    <td>${date}</td>
-                    <td class="process-name">${r.process}</td>
-                    <td><input type="number" value="${r.production}" data-date="${date}" data-process="${r.process}" data-fld="production"></td>
-                    <td><input type="number" value="${r.cosmeticDefect}" data-date="${date}" data-process="${r.process}" data-fld="cosmeticDefect"></td>
-                    <td><input type="number" value="${r.functionalDefect}" data-date="${date}" data-process="${r.process}" data-fld="functionalDefect"></td>
-                    <td class="calc-cell calc-rate">${formatRate(rate)}</td>
-                    <td><input type="number" value="${workers}" data-date="${date}" data-process="${r.process}" data-fld="workers"></td>
-                    <td><input type="number" value="${hours}" data-date="${date}" data-process="${r.process}" data-fld="dailyHours"></td>
-                    <td class="calc-cell calc-total-hours">${workHours.toFixed(1)}</td>
-                    <td class="calc-cell calc-avg-hour">${avgHour.toFixed(2)}</td>
-                    <td class="calc-cell calc-upph">${formatValue(upph)}</td>
-                    <td class="calc-cell calc-unit-price">${unitPrice > 0 ? '¥' + unitPrice.toFixed(2) : '-'}</td>
-                    <td><button class="btn-delete delete-process" data-date="${date}" data-process="${r.process}">🗑</button></td>
+        dates.forEach(d => {
+            const day = grp[d].sort((a,b) => ['后焊','组装','包装'].indexOf(a.process) - ['后焊','组装','包装'].indexOf(b.process));
+            let tp = 0, tc = 0, tf = 0, tw = 0, th = 0, twh = 0, tpr = 0;
+            day.forEach(r => {
+                const w = r.workers, hr = r.hrs, wh = w * hr;
+                const td = r.cos + r.func;
+                const up = upph(r.prod, w, hr);
+                const pr = up > 0 ? 20 / up : 0;
+                tp += r.prod; tc += r.cos; tf += r.func; tw += w; th += hr; twh += wh; if (up > 0) tpr += pr;
+                h += `<tr id="r-${d}-${r.process}">
+                    <td>${d}</td><td class="process-name">${r.process}</td>
+                    <td><input type="number" value="${r.prod}" data-d="${d}" data-p="${r.process}" data-f="prod"></td>
+                    <td><input type="number" value="${r.cos}" data-d="${d}" data-p="${r.process}" data-f="cos"></td>
+                    <td><input type="number" value="${r.func}" data-d="${d}" data-p="${r.process}" data-f="func"></td>
+                    <td class="calc-cell">${fmtR(rate(r.prod, td))}</td>
+                    <td><input type="number" value="${w}" data-d="${d}" data-p="${r.process}" data-f="workers"></td>
+                    <td><input type="number" value="${hr}" data-d="${d}" data-p="${r.process}" data-f="hrs"></td>
+                    <td class="calc-cell">${wh.toFixed(1)}</td>
+                    <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
+                    <td class="calc-cell">${fmtV(up)}</td>
+                    <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
+                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">🗑</button></td>
                 </tr>`;
             });
-
-            const totalDefect = dayCosmetic + dayFunc;
-            const dayRate = defectRate(dayProd, totalDefect);
-            const dayAvgHour = dayHours > 0 ? dayProd / dayHours : 0;
-            const dayUPPH = computeUPPH(dayProd, dayWorkers, dayHours);
-
-            htmlRows += `<tr class="summary-row" id="summary-${date}">
-                <td colspan="2" style="text-align:right;">${date} 汇总</td>
-                <td><strong>${dayProd}</strong></td>
-                <td>${dayCosmetic}</td>
-                <td>${dayFunc}</td>
-                <td>${formatRate(dayRate)}</td>
-                <td>${dayWorkers}</td>
-                <td>${dayHours.toFixed(1)}</td>
-                <td>${dayWorkHours.toFixed(1)}</td>
-                <td>${dayAvgHour.toFixed(2)}</td>
-                <td>${formatValue(dayUPPH)}</td>
-                <td><strong>¥${dayPrice.toFixed(2)}</strong></td>
-                <td><button class="btn-delete delete-date" data-date="${date}">删全天</button></td>
+            const td = tc + tf;
+            h += `<tr class="summary-row" id="s-${d}">
+                <td colspan="2" style="text-align:right;">${d} 汇总</td>
+                <td><strong>${tp}</strong></td><td>${tc}</td><td>${tf}</td><td>${fmtR(rate(tp, td))}</td>
+                <td>${tw}</td><td>${th.toFixed(1)}</td><td>${twh.toFixed(1)}</td>
+                <td>${(th > 0 ? tp / th : 0).toFixed(2)}</td><td>${fmtV(upph(tp, tw, th))}</td>
+                <td><strong>¥${tpr.toFixed(2)}</strong></td>
+                <td><button class="btn-delete del-d" data-d="${d}">删全天</button></td>
             </tr>`;
         });
 
-        htmlRows += `<tr class="grand-total-row" id="grandTotalRow">
-            <td colspan="2" style="text-align:right;">全部汇总</td>
-            <td class="gt-total-prod">0</td>
-            <td class="gt-cosmetic">0</td>
-            <td class="gt-func">0</td>
-            <td class="gt-rate">-</td>
-            <td class="gt-workers">0</td>
-            <td class="gt-dailyhours">0</td>
-            <td class="gt-totalhours">0</td>
-            <td class="gt-avg-hour">0</td>
-            <td class="gt-upph">-</td>
-            <td class="gt-unit-price">-</td>
-            <td></td>
-        </tr>`;
-
-        tableBody.innerHTML = htmlRows;
-        wireTableEvents();
-        refreshGrandTotal();
+        h += `<tr class="grand-total-row" id="gt"><td colspan="2" style="text-align:right;">全部汇总</td><td>0</td><td>0</td><td>0</td><td>-</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td></td></tr>`;
+        tbody.innerHTML = h;
+        bindEvts();
+        updateGT();
     }
 
-    function refreshGrandTotal() {
-        const all = allData[activePage] || [];
-        const gt = document.getElementById('grandTotalRow');
+    function updateGT() {
+        const all = data[active] || [];
+        const gt = document.getElementById('gt');
         if (!gt) return;
         if (!all.length) { gt.style.display = 'none'; return; }
         gt.style.display = '';
-
-        let totalProd = 0, totalCosm = 0, totalFunc = 0, totalWork = 0, totalHours = 0, totalWorkHours = 0;
-        const dailyPrice = {};
-
+        let tp = 0, tc = 0, tf = 0, tw = 0, th = 0, twh = 0;
+        const dp = {};
         all.forEach(r => {
-            totalProd += r.production;
-            totalCosm += r.cosmeticDefect;
-            totalFunc += r.functionalDefect;
-            totalWork += r.workers;
-            totalHours += r.dailyHours;
-            totalWorkHours += r.workers * r.dailyHours;
-            const upph = computeUPPH(r.production, r.workers, r.dailyHours);
-            const price = upph > 0 ? 20 / upph : 0;
-            if (!dailyPrice[r.date]) dailyPrice[r.date] = 0;
-            dailyPrice[r.date] += price;
+            tp += r.prod; tc += r.cos; tf += r.func; tw += r.workers; th += r.hrs; twh += r.workers * r.hrs;
+            const up = upph(r.prod, r.workers, r.hrs);
+            const pr = up > 0 ? 20 / up : 0;
+            if (!dp[r.date]) dp[r.date] = 0;
+            dp[r.date] += pr;
         });
-
-        const totalDefect = totalCosm + totalFunc;
-        const rate = defectRate(totalProd, totalDefect);
-        const avgHour = totalHours > 0 ? totalProd / totalHours : 0;
-        const upphAll = computeUPPH(totalProd, totalWork, totalHours);
-        const dayCount = Object.keys(dailyPrice).length;
-        let sumPrice = 0;
-        Object.values(dailyPrice).forEach(v => sumPrice += v);
-        const avgPrice = dayCount > 0 ? sumPrice / dayCount : 0;
-
-        gt.querySelector('.gt-total-prod').textContent = totalProd;
-        gt.querySelector('.gt-cosmetic').textContent = totalCosm;
-        gt.querySelector('.gt-func').textContent = totalFunc;
-        gt.querySelector('.gt-rate').textContent = formatRate(rate);
-        gt.querySelector('.gt-workers').textContent = totalWork;
-        gt.querySelector('.gt-dailyhours').textContent = totalHours.toFixed(1);
-        gt.querySelector('.gt-totalhours').textContent = totalWorkHours.toFixed(1);
-        gt.querySelector('.gt-avg-hour').textContent = avgHour.toFixed(2);
-        gt.querySelector('.gt-upph').textContent = formatValue(upphAll);
-        gt.querySelector('.gt-unit-price').textContent = '¥' + avgPrice.toFixed(2);
+        const td = tc + tf;
+        const days = Object.keys(dp).length;
+        let sumPr = 0; Object.values(dp).forEach(v => sumPr += v);
+        gt.children[2].textContent = tp; gt.children[3].textContent = tc; gt.children[4].textContent = tf;
+        gt.children[5].textContent = fmtR(rate(tp, td));
+        gt.children[6].textContent = tw; gt.children[7].textContent = th.toFixed(1); gt.children[8].textContent = twh.toFixed(1);
+        gt.children[9].textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        gt.children[10].textContent = fmtV(upph(tp, tw, th));
+        gt.children[11].textContent = '¥' + (days > 0 ? sumPr / days : 0).toFixed(2);
     }
 
-    function updateRowDisplay(date, process) {
-        const row = (allData[activePage] || []).find(r => r.date === date && r.process === process);
-        if (!row) return;
-        const tr = document.getElementById(`row-${date}-${process}`);
-        if (!tr) return;
-        const upph = computeUPPH(row.production, row.workers, row.dailyHours);
-        const defectTotal = row.cosmeticDefect + row.functionalDefect;
-        const price = upph > 0 ? 20 / upph : 0;
-        tr.querySelector('.calc-rate').textContent = formatRate(defectRate(row.production, defectTotal));
-        tr.querySelector('.calc-total-hours').textContent = (row.workers * row.dailyHours).toFixed(1);
-        tr.querySelector('.calc-avg-hour').textContent = (row.dailyHours > 0 ? row.production / row.dailyHours : 0).toFixed(2);
-        tr.querySelector('.calc-upph').textContent = formatValue(upph);
-        tr.querySelector('.calc-unit-price').textContent = price > 0 ? '¥' + price.toFixed(2) : '-';
-    }
-
-    function updateDaySummary(date) {
-        const rows = (allData[activePage] || []).filter(r => r.date === date);
-        if (!rows.length) return;
-        const sr = document.getElementById('summary-' + date);
-        if (!sr) return;
-        let prod = 0, cosmetic = 0, func = 0, workers = 0, hours = 0, workHours = 0, price = 0;
-        rows.forEach(r => {
-            prod += r.production;
-            cosmetic += r.cosmeticDefect;
-            func += r.functionalDefect;
-            workers += r.workers;
-            hours += r.dailyHours;
-            workHours += r.workers * r.dailyHours;
-            const upph = computeUPPH(r.production, r.workers, r.dailyHours);
-            if (upph > 0) price += 20 / upph;
-        });
-        const totalDefect = cosmetic + func;
-        const rate = defectRate(prod, totalDefect);
-        const avgHour = hours > 0 ? prod / hours : 0;
-        const upph = computeUPPH(prod, workers, hours);
-        sr.querySelector('td:nth-child(3)').textContent = prod;
-        sr.querySelector('td:nth-child(4)').textContent = cosmetic;
-        sr.querySelector('td:nth-child(5)').textContent = func;
-        sr.querySelector('td:nth-child(6)').textContent = formatRate(rate);
-        sr.querySelector('td:nth-child(7)').textContent = workers;
-        sr.querySelector('td:nth-child(8)').textContent = hours.toFixed(1);
-        sr.querySelector('td:nth-child(9)').textContent = workHours.toFixed(1);
-        sr.querySelector('td:nth-child(10)').textContent = avgHour.toFixed(2);
-        sr.querySelector('td:nth-child(11)').textContent = formatValue(upph);
-        sr.querySelector('td:nth-child(12)').textContent = '¥' + price.toFixed(2);
-    }
-
-    function onInputChange(e) {
-        const el = e.target;
-        const date = el.dataset.date;
-        const process = el.dataset.process;
-        const field = el.dataset.fld;
-        const val = parseFloat(el.value) || 0;
-        const row = (allData[activePage] || []).find(r => r.date === date && r.process === process);
-        if (!row) return;
-        row[field] = val;
-        updateRowDisplay(date, process);
-        updateDaySummary(date);
-        refreshGrandTotal();
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => {
-            isUploading = true;
-            pushPageToCloud(activePage).then(() => { isUploading = false; });
-        }, 500);
-        clearTimeout(chartTimer);
-        chartTimer = setTimeout(updateChart, 300);
-    }
-
-    function wireTableEvents() {
-        document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', onInputChange));
-        document.querySelectorAll('.delete-process').forEach(btn => {
-            btn.addEventListener('click', async function () {
-                const date = this.dataset.date, process = this.dataset.process;
-                if (!confirm(`删除 ${date} ${process} 记录？`)) return;
-                const row = (allData[activePage] || []).find(r => r.date === date && r.process === process);
-                if (row && row.id) await removeRowFromCloud(row.id);
-                allData[activePage] = (allData[activePage] || []).filter(r => !(r.date === date && r.process === process));
-                drawTable();
-                updateChart();
-            });
-        });
-        document.querySelectorAll('.delete-date').forEach(btn => {
-            btn.addEventListener('click', async function () {
-                const date = this.dataset.date;
-                if (!confirm(`删除 ${date} 所有记录？`)) return;
-                const rows = (allData[activePage] || []).filter(r => r.date === date);
-                for (const r of rows) { if (r.id) await removeRowFromCloud(r.id); }
-                allData[activePage] = (allData[activePage] || []).filter(r => r.date !== date);
-                drawTable();
-                updateChart();
-            });
-        });
-    }
-
-    async function onAddDay() {
-        const today = new Date().toISOString().split('T')[0];
-        const chosen = prompt('请输入日期（YYYY-MM-DD）：', today);
-        if (!chosen || !/^\d{4}-\d{2}-\d{2}$/.test(chosen)) { return; }
-        if ((allData[activePage] || []).some(r => r.date === chosen)) {
-            alert(chosen + ' 已存在');
-            return;
-        }
-        const newRows = ['后焊', '组装', '包装'].map(p => ({
-            date: chosen, process: p, production: 0, cosmeticDefect: 0, functionalDefect: 0,
-            workers: 0, dailyHours: 0
+    function bindEvts() {
+        document.querySelectorAll('input').forEach(i => i.addEventListener('input', e => {
+            const el = e.target;
+            const row = (data[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
+            if (!row) return;
+            row[el.dataset.f] = parseFloat(el.value) || 0;
+            updRow(el.dataset.d, el.dataset.p);
+            updSum(el.dataset.d);
+            updateGT();
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => { pending = true; save(active).then(() => pending = false); }, 500);
+            clearTimeout(chartTimer);
+            chartTimer = setTimeout(updChart, 300);
         }));
-        allData[activePage] = (allData[activePage] || []).concat(newRows);
-        await pushPageToCloud(activePage);
-        await fetchPageData(activePage);
-        drawTable();
-        updateChart();
+
+        document.querySelectorAll('.del-p').forEach(b => b.addEventListener('click', async function() {
+            if (!confirm('删除记录？')) return;
+            const row = (data[active] || []).find(r => r.date === this.dataset.d && r.process === this.dataset.p);
+            if (row && row.id) await db.from('production_records').delete().eq('id', row.id);
+            data[active] = (data[active] || []).filter(r => !(r.date === this.dataset.d && r.process === this.dataset.p));
+            render(); updChart();
+        }));
+
+        document.querySelectorAll('.del-d').forEach(b => b.addEventListener('click', async function() {
+            if (!confirm('删除全天？')) return;
+            const rows = (data[active] || []).filter(r => r.date === this.dataset.d);
+            for (const r of rows) if (r.id) await db.from('production_records').delete().eq('id', r.id);
+            data[active] = (data[active] || []).filter(r => r.date !== this.dataset.d);
+            render(); updChart();
+        }));
     }
 
-    async function onClearAll() {
-        const rows = allData[activePage] || [];
+    function updRow(d, p) {
+        const row = (data[active] || []).find(r => r.date === d && r.process === p);
+        if (!row) return;
+        const tr = document.getElementById('r-' + d + '-' + p);
+        if (!tr) return;
+        const up = upph(row.prod, row.workers, row.hrs);
+        const pr = up > 0 ? 20 / up : 0;
+        tr.children[5].textContent = fmtR(rate(row.prod, row.cos + row.func));
+        tr.children[8].textContent = (row.workers * row.hrs).toFixed(1);
+        tr.children[9].textContent = (row.hrs > 0 ? row.prod / row.hrs : 0).toFixed(2);
+        tr.children[10].textContent = fmtV(up);
+        tr.children[11].textContent = pr > 0 ? '¥' + pr.toFixed(2) : '-';
+    }
+
+    function updSum(d) {
+        const rows = (data[active] || []).filter(r => r.date === d);
         if (!rows.length) return;
-        if (!confirm('删除全部记录不可恢复哦！')) return;
-        syncDot.className = 'sync-dot syncing';
-        syncText.textContent = '同步中...';
-        try {
-            await supabase.from('production_records').delete().eq('board', activePage);
-            allData[activePage] = [];
-            drawTable();
-            updateChart();
-            syncDot.className = 'sync-dot';
-            syncText.textContent = '已连接';
-        } catch (e) {
-            console.error(e);
-            syncDot.className = 'sync-dot error';
-            syncText.textContent = '离线';
-        }
+        const tr = document.getElementById('s-' + d);
+        if (!tr) return;
+        let tp = 0, tc = 0, tf = 0, tw = 0, th = 0, twh = 0, tpr = 0;
+        rows.forEach(r => {
+            tp += r.prod; tc += r.cos; tf += r.func; tw += r.workers; th += r.hrs; twh += r.workers * r.hrs;
+            const up = upph(r.prod, r.workers, r.hrs);
+            if (up > 0) tpr += 20 / up;
+        });
+        tr.children[2].textContent = tp; tr.children[3].textContent = tc; tr.children[4].textContent = tf;
+        tr.children[5].textContent = fmtR(rate(tp, tc + tf));
+        tr.children[6].textContent = tw; tr.children[7].textContent = th.toFixed(1); tr.children[8].textContent = twh.toFixed(1);
+        tr.children[9].textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        tr.children[10].textContent = fmtV(upph(tp, tw, th));
+        tr.children[11].textContent = '¥' + tpr.toFixed(2);
     }
 
-    function prepareChartData() {
-        const rows = allData[activePage] || [];
+    async function addDay() {
+        const d = prompt('日期 (YYYY-MM-DD)：', new Date().toISOString().split('T')[0]);
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        if ((data[active] || []).some(r => r.date === d)) { showMsg('已存在'); return; }
+        const rows = ['后焊','组装','包装'].map(p => ({ date: d, process: p, prod: 0, cos: 0, func: 0, workers: 0, hrs: 0 }));
+        data[active] = (data[active] || []).concat(rows);
+        await save(active);
+        await load(active);
+        render();
+        updChart();
+    }
+
+    async function clearAll() {
+        if (!confirm('删除全部？')) return;
+        await db.from('production_records').delete().eq('board', active);
+        data[active] = [];
+        render();
+        updChart();
+    }
+
+    function prepChart() {
+        const rows = data[active] || [];
         const map = {};
         rows.forEach(r => {
-            if (!map[r.date]) map[r.date] = { 后焊: 0, 组装: 0, 包装: 0, cosmetic: 0, func: 0, workers: 0, hours: 0 };
-            map[r.date][r.process] += r.production;
-            map[r.date].cosmetic += r.cosmeticDefect;
-            map[r.date].func += r.functionalDefect;
-            map[r.date].workers += r.workers;
-            map[r.date].hours += r.dailyHours;
+            if (!map[r.date]) map[r.date] = { 后焊:0, 组装:0, 包装:0, cos:0, func:0, w:0, h:0 };
+            map[r.date][r.process] += r.prod;
+            map[r.date].cos += r.cos; map[r.date].func += r.func;
+            map[r.date].w += r.workers; map[r.date].h += r.hrs;
         });
         const dates = Object.keys(map).sort();
-        const sets = { dates, 后焊: [], 组装: [], 包装: [], total: [], cosmetic: [], func: [], totalDefect: [], rate: [], upph: [], price: [] };
+        const s = { dates, 后焊:[], 组装:[], 包装:[], total:[], cos:[], func:[], td:[], rate:[], upph:[], price:[] };
         dates.forEach(d => {
             const v = map[d];
-            sets.后焊.push(v.后焊); sets.组装.push(v.组装); sets.包装.push(v.包装);
-            const t = v.后焊 + v.组装 + v.包装;
-            sets.total.push(t);
-            sets.cosmetic.push(v.cosmetic); sets.func.push(v.func);
-            const td = v.cosmetic + v.func;
-            sets.totalDefect.push(td);
-            sets.rate.push(t > 0 ? +(td / t * 100).toFixed(2) : null);
-            const upphVal = t > 0 && v.workers > 0 && v.hours > 0 ? t / (v.workers * v.hours) : 0;
-            sets.upph.push(upphVal > 0 ? +upphVal.toFixed(2) : null);
-            let priceSum = 0;
+            s.后焊.push(v.后焊); s.组装.push(v.组装); s.包装.push(v.包装);
+            const tp = v.后焊 + v.组装 + v.包装;
+            s.total.push(tp); s.cos.push(v.cos); s.func.push(v.func);
+            const td = v.cos + v.func;
+            s.td.push(td); s.rate.push(tp > 0 ? +(td / tp * 100).toFixed(2) : null);
+            const u = tp > 0 && v.w > 0 && v.h > 0 ? tp / (v.w * v.h) : 0;
+            s.upph.push(u > 0 ? +u.toFixed(2) : null);
+            let pr = 0;
             rows.filter(r => r.date === d).forEach(r => {
-                const up = computeUPPH(r.production, r.workers, r.dailyHours);
-                if (up > 0) priceSum += 20 / up;
+                const up = upph(r.prod, r.workers, r.hrs);
+                if (up > 0) pr += 20 / up;
             });
-            sets.price.push(+priceSum.toFixed(2));
+            s.price.push(+pr.toFixed(2));
         });
-        return sets;
+        return s;
     }
 
-    function updateChart() {
-        if (!chartInstance) initChart();
-        const d = prepareChartData();
-        chartInstance.data.labels = d.dates;
-        chartInstance.data.datasets[0].data = d.后焊;
-        chartInstance.data.datasets[1].data = d.组装;
-        chartInstance.data.datasets[2].data = d.包装;
-        chartInstance.data.datasets[3].data = d.total;
-        chartInstance.data.datasets[4].data = d.cosmetic;
-        chartInstance.data.datasets[5].data = d.func;
-        chartInstance.data.datasets[6].data = d.totalDefect;
-        chartInstance.data.datasets[7].data = d.rate;
-        chartInstance.data.datasets[8].data = d.upph;
-        chartInstance.data.datasets[9].data = d.price;
-        chartInstance.update();
+    function updChart() {
+        if (!chart) initChart();
+        const s = prepChart();
+        chart.data.labels = s.dates;
+        chart.data.datasets[0].data = s.后焊; chart.data.datasets[1].data = s.组装;
+        chart.data.datasets[2].data = s.包装; chart.data.datasets[3].data = s.total;
+        chart.data.datasets[4].data = s.cos; chart.data.datasets[5].data = s.func;
+        chart.data.datasets[6].data = s.td; chart.data.datasets[7].data = s.rate;
+        chart.data.datasets[8].data = s.upph; chart.data.datasets[9].data = s.price;
+        chart.update();
     }
 
     function initChart() {
-        if (chartInstance) chartInstance.destroy();
-        const d = prepareChartData();
-        chartInstance = new Chart(chartCanvas, {
+        if (chart) chart.destroy();
+        const s = prepChart();
+        chart = new Chart(canvas, {
             type: 'line',
             data: {
-                labels: d.dates,
+                labels: s.dates,
                 datasets: [
-                    { label: '后焊产量', data: d.后焊, borderColor: '#FF9500', tension: 0.3, yAxisID: 'y' },
-                    { label: '组装产量', data: d.组装, borderColor: '#34C759', tension: 0.3, yAxisID: 'y' },
-                    { label: '包装产量', data: d.包装, borderColor: '#007AFF', tension: 0.3, yAxisID: 'y' },
-                    { label: '总产量', data: d.total, borderColor: '#000', borderWidth: 3, tension: 0.3, yAxisID: 'y' },
-                    { label: '外观不良', data: d.cosmetic, borderColor: '#AF52DE', tension: 0.3, yAxisID: 'y' },
-                    { label: '功能不良', data: d.func, borderColor: '#5AC8FA', tension: 0.3, yAxisID: 'y' },
-                    { label: '不良品总数', data: d.totalDefect, borderColor: '#FF3B30', tension: 0.3, yAxisID: 'y' },
-                    { label: '不良品率', data: d.rate, borderColor: '#FF9500', borderDash: [5, 2], tension: 0.3, yAxisID: 'y1' },
-                    { label: 'UPPH', data: d.upph, borderColor: '#34C759', borderDash: [3, 3], tension: 0.3, yAxisID: 'y1' },
-                    { label: '总单价', data: d.price, borderColor: '#FF2D55', borderDash: [6, 2], tension: 0.3, yAxisID: 'y1' }
-               
+                    { label: '后焊', data: s.后焊, borderColor: '#FF9500', tension: 0.3, yAxisID: 'y' },
+                    { label: '组装', data: s.组装, borderColor: '#34C759', tension: 0.3, yAxisID: 'y' },
+                    { label: '包装', data: s.包装, borderColor: '#007AFF', tension: 0.3, yAxisID: 'y' },
+                    { label: '总产量', data: s.total, borderColor: '#000', borderWidth: 3, tension: 0.3, yAxisID: 'y' },
+                    { label: '外观不良', data: s.cos, borderColor: '#AF52DE', tension: 0.3, yAxisID: 'y' },
+                    { label: '功能不良', data: s.func, borderColor: '#5AC8FA', tension: 0.3, yAxisID: 'y' },
+                    { label: '不良品总数', data: s.td, borderColor: '#FF3B30', tension: 0.3, yAxisID: 'y' },
+                    { label: '不良品率', data: s.rate, borderColor: '#FF9500', borderDash: [5, 2], tension: 0.3, yAxisID: 'y1' },
+                    { label: 'UPPH', data: s.upph, borderColor: '#34C759', borderDash: [3, 3], tension: 0.3, yAxisID: 'y1' },
+                    { label: '总单价', data: s.price, borderColor: '#FF2D55', borderDash: [6, 2], tension: 0.3, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { type: 'linear', position: 'left', title: { display: true, text: '数量' }, beginAtZero: true },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: '比率/UPPH/单价' }, grid: { display: false }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function renderTabs() {
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
+            if (e.target.classList.contains('edit-tab')) return;
+            if (e.target.classList.contains('close-tab')) return;
+            switchUser(b.dataset.u);
+        }));
+        tabsBar.querySelectorAll('.edit-tab').forEach(s => s.addEventListener('click', e => {
+            e.stopPropagation();
+            const old = s.parentElement.dataset.u;
+            const n = prompt('新名称：', old);
+            if (n && n.trim() && n !== old && !users.includes(n.trim())) {
+                data[n] = data[old] || [];
+                delete data[old];
+                users = users.map(u => u === old ? n.trim() : u);
+                if (active === old) active = n.trim();
+                renderTabs(); render(); updChart();
+            }
+        }));
+        tabsBar.querySelectorAll('.close-tab').forEach(s => s.addEventListener('click', async e => {
+            e.stopPropagation();
+            const u = s.parentElement.dataset.u;
+            if (!confirm('删除页面？')) return;
+            await db.from('production_records').delete().eq('board', u);
+            delete data[u];
+            users = users.filter(b => b !== u);
+            if (active === u) active = users[0];
+            renderTabs(); render(); updChart();
+        }));
+        tabsBar.querySelector('.add-tab-btn').addEventListener('click', () => {
+            const n = prompt('新页面：');
+            if (!n || !n.trim() || users.includes(n.trim())) return;
+            users.push(n.trim());
+            active = n.trim();
+            data[active] = [];
+            renderTabs(); render(); updChart();
+        });
+    }
+
+    async function switchUser(u) {
+        if (u === active) return;
+        active = u;
+        if (!data[active]) await load(active);
+        renderTabs(); render(); updChart();
+        dot.className = 'sync-dot'; txt.textContent = '已连接';
+    }
+
+    async function start() {
+        for (const u of users) await load(u);
+        active = users[0];
+        renderTabs(); render(); initChart(); updChart();
+        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
+            if (pending) return;
+            await load(active);
+            render();
+            updChart();
+        }).subscribe();
+    }
+
+    document.getElementById('btnAdd').addEventListener('click', addDay);
+    document.getElementById('btnClearAll').addEventListener('click', clearAll);
+    start();
+})();
+</script>
+</body>
+</html>
