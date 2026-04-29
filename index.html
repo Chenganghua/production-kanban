@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板 v2.5.9</title>
+    <title>生产数据看板 · 联网同步</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -41,11 +41,11 @@
         .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; box-shadow:var(--shadow-md); border:1px solid var(--border); }
         .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
         .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
-        table{ width:100%; border-collapse:collapse; font-size:12px; color:#000; min-width:1200px; }
+        table{ width:100%; border-collapse:collapse; font-size:12px; color:#000; min-width:1300px; }
         th{ background:#f5f5f7; padding:8px 4px; font-size:11px; font-weight:700; border-bottom:2px solid #d0d0d0; white-space:nowrap; }
         td{ padding:6px 4px; text-align:center; border-bottom:1px solid #ececec; }
         td.process-name{ font-weight:600; background:#fafafa; }
-        input[type="number"]{ width:65px; padding:6px 4px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:12px; text-align:center; font-family:var(--font); }
+        input[type="number"]{ width:70px; padding:6px 4px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:12px; text-align:center; font-family:var(--font); }
         .calc-cell{ font-weight:600; white-space:nowrap; }
         .summary-row td{ background:#fff9e6; font-weight:700; }
         .no-data-msg{ text-align:center; padding:20px; opacity:0.6; }
@@ -67,7 +67,7 @@
         <h2>生产数据看板</h2>
         <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
             <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-            <div class="maker-info">网页制作人：陈港华 · 2026-04-29 · v2.5.9</div>
+            <div class="maker-info">制作人：陈港华 · 2021-12-7 · V12</div>
         </div>
     </div>
     <div class="chart-card">
@@ -217,13 +217,13 @@
         const defectRate = row.production > 0 ? (defectTotal / row.production * 100).toFixed(2) : '-';
         const avgHourProd = dailyHours > 0 ? row.production / dailyHours : 0;
         const upph = (workers > 0 && dailyHours > 0 && row.production > 0) ? (row.production / (workers * dailyHours)).toFixed(2) : '-';
-        const unitPrice = row.production > 0 ? ((dailyHours * 200) / row.production).toFixed(2) : '-';
+        const unitPrice = row.production > 0 ? ((dailyHours * 20) / row.production).toFixed(4) : '-';
 
         tr.querySelector('.calc-rate').textContent = defectRate + (defectRate !== '-' ? '%' : '');
         tr.querySelector('.calc-total-hours').textContent = totalWorkHours.toFixed(1);
         tr.querySelector('.calc-avg-hour').textContent = avgHourProd.toFixed(2);
         tr.querySelector('.calc-upph').textContent = upph;
-        tr.querySelector('.calc-unit-price').textContent = unitPrice !== '-' ? '¥' + unitPrice : '-';
+        tr.querySelector('.calc-unit-price').textContent = unitPrice !== '-' ? '¥' + parseFloat(unitPrice).toFixed(2) : '-';
     }
 
     function refreshSummaryRow(date) {
@@ -308,7 +308,7 @@
                 const defectRate = r.production > 0 ? (defectTotal / r.production * 100).toFixed(2) : '-';
                 const avgHourProd = dailyHours > 0 ? r.production / dailyHours : 0;
                 const upph = (workers > 0 && dailyHours > 0 && r.production > 0) ? (r.production / (workers * dailyHours)).toFixed(2) : '-';
-                const unitPrice = r.production > 0 ? ((dailyHours * 20) / r.production).toFixed(2) : '-';
+                const unitPrice = r.production > 0 ? ((dailyHours * 20) / r.production).toFixed(4) : '-';
 
                 html += `<tr id="row-${date}-${r.process}">
                     <td>${date}</td><td class="process-name">${r.process}</td>
@@ -321,7 +321,7 @@
                     <td class="calc-cell calc-total-hours">${workHours.toFixed(1)}</td>
                     <td class="calc-cell calc-avg-hour">${avgHourProd.toFixed(2)}</td>
                     <td class="calc-cell calc-upph">${upph}</td>
-                    <td class="calc-cell calc-unit-price">${unitPrice !== '-' ? '¥' + unitPrice : '-'}</td>
+                    <td class="calc-cell calc-unit-price">${unitPrice !== '-' ? '¥' + parseFloat(unitPrice).toFixed(2) : '-'}</td>
                     <td><button class="btn-delete delete-process" data-date="${date}" data-process="${r.process}">🗑</button></td>
                 </tr>`;
             });
