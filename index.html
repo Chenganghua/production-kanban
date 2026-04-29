@@ -52,7 +52,8 @@
         .grand-total-row td{ background:#e8f0fe; font-weight:700; }
         .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; }
         .btn-danger{ background:var(--red); }
-        .btn-delete{ background:#fff; color:#000; border:1.5px solid #d0d0d0; padding:5px 10px; border-radius:20px; font-size:12px; cursor:pointer; }
+        .btn-del{ background:none; border:none; cursor:pointer; font-size:16px; padding:4px 8px; border-radius:50%; transition:all 0.2s; }
+        .btn-del:hover{ background:rgba(255,59,48,0.1); }
         .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
         .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
         @media (max-width:750px){ .chart-wrapper{ height:280px; } }
@@ -124,7 +125,7 @@
     }
 
     async function load(u) {
-        dot.className = 'sync-dot syncing'; txt.textContent = '同步数据库中...';
+        dot.className = 'sync-dot syncing'; txt.textContent = '数据库同步中...';
         try {
             const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
             if (error) throw error;
@@ -134,7 +135,7 @@
                 func: r.functional_defect || 0, workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
             dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
-        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '未连接数据库'; data[u] = []; }
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '已断开数据库'; data[u] = []; }
     }
 
     async function save(u) {
@@ -184,7 +185,7 @@
                     <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
                     <td class="calc-cell">${fmtV(up)}</td>
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
-                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">🗑</button></td>
+                    <td><button class="btn-del del-p" data-d="${d}" data-p="${r.process}" style="color:var(--red);" title="删除此行">✕</button></td>
                 </tr>`;
             });
             const td = tc + tf;
@@ -194,11 +195,11 @@
                 <td>${tw}</td><td>${th.toFixed(1)}</td><td>${twh.toFixed(1)}</td>
                 <td>${(th > 0 ? tp / th : 0).toFixed(2)}</td><td>${fmtV(upph(tp, tw, th))}</td>
                 <td><strong>¥${tpr.toFixed(2)}</strong></td>
-                <td><button class="btn-delete del-d" data-d="${d}">删全天</button></td>
+                <td><button class="btn-del del-d" data-d="${d}" style="color:var(--red);" title="删除全天">✕</button></td>
             </tr>`;
         });
 
-        h += `<tr class="grand-total-row" id="gt"><td colspan="2" style="text-align:right;">全部汇总</td><td>0</td><td>0</td><td>0</td><td>-</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td></td></tr>`;
+        h += `<tr class="grand-total-row" id="gt"><td colspan="2" style="text-align:right;">全部汇总</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td></td></tr>`;
         tbody.innerHTML = h;
         bindEvts();
         updateGT();
@@ -210,24 +211,41 @@
         if (!gt) return;
         if (!all.length) { gt.style.display = 'none'; return; }
         gt.style.display = '';
-        let tp = 0, tc = 0, tf = 0, tw = 0, th = 0, twh = 0;
-        const dp = {};
+
+        let totalProd = 0, totalCos = 0, totalFunc = 0, totalDailyHours = 0, totalWorkHours = 0;
+        const dailyPriceMap = {};
+
         all.forEach(r => {
-            tp += r.prod; tc += r.cos; tf += r.func; tw += r.workers; th += r.hrs; twh += r.workers * r.hrs;
+            totalProd += r.prod;
+            totalCos += r.cos;
+            totalFunc += r.func;
+            totalDailyHours += r.hrs;
+            totalWorkHours += r.workers * r.hrs;
             const up = upph(r.prod, r.workers, r.hrs);
             const pr = up > 0 ? 20 / up : 0;
-            if (!dp[r.date]) dp[r.date] = 0;
-            dp[r.date] += pr;
+            if (!dailyPriceMap[r.date]) dailyPriceMap[r.date] = 0;
+            dailyPriceMap[r.date] += pr;
         });
-        const td = tc + tf;
-        const days = Object.keys(dp).length;
-        let sumPr = 0; Object.values(dp).forEach(v => sumPr += v);
-        gt.children[2].textContent = tp; gt.children[3].textContent = tc; gt.children[4].textContent = tf;
-        gt.children[5].textContent = fmtR(rate(tp, td));
-        gt.children[6].textContent = tw; gt.children[7].textContent = th.toFixed(1); gt.children[8].textContent = twh.toFixed(1);
-        gt.children[9].textContent = (th > 0 ? tp / th : 0).toFixed(2);
-        gt.children[10].textContent = fmtV(upph(tp, tw, th));
-        gt.children[11].textContent = '¥' + (days > 0 ? sumPr / days : 0).toFixed(2);
+
+        const totalDefect = totalCos + totalFunc;
+        const allRate = rate(totalProd, totalDefect);
+        const avgHourAll = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
+        const allUPPH = upph(totalProd, 1, totalDailyHours);
+        const dayCount = Object.keys(dailyPriceMap).length;
+        let sumPrice = 0;
+        Object.values(dailyPriceMap).forEach(v => sumPrice += v);
+        const avgPrice = dayCount > 0 ? sumPrice / dayCount : 0;
+
+        gt.children[2].textContent = totalProd;
+        gt.children[3].textContent = totalCos;
+        gt.children[4].textContent = totalFunc;
+        gt.children[5].textContent = fmtR(allRate);
+        gt.children[6].textContent = '-';
+        gt.children[7].textContent = totalDailyHours.toFixed(1);
+        gt.children[8].textContent = totalWorkHours.toFixed(1);
+        gt.children[9].textContent = avgHourAll.toFixed(2);
+        gt.children[10].textContent = fmtV(allUPPH);
+        gt.children[11].textContent = '¥' + avgPrice.toFixed(2);
     }
 
     function bindEvts() {
@@ -297,7 +315,8 @@
     }
 
     async function addDay() {
-        const d = prompt('日期 (YYYY-MM-DD)：', new Date().toISOString().split('T')[0]);
+        const today = new Date().toISOString().split('T')[0];
+        const d = prompt('日期 (YYYY-MM-DD)：', today);
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
         if ((data[active] || []).some(r => r.date === d)) { showMsg('已存在'); return; }
         const rows = ['后焊','组装','包装'].map(p => ({ date: d, process: p, prod: 0, cos: 0, func: 0, workers: 0, hrs: 0 }));
@@ -348,10 +367,8 @@
         if (!chart) initChart();
         const s = prepChart();
         chart.data.labels = s.dates;
-        chart.data.datasets.forEach((ds, i) => {
-            const keys = ['后焊','组装','包装','total','cos','func','td','rate','upph','price'];
-            ds.data = s[keys[i]];
-        });
+        const keys = ['后焊','组装','包装','total','cos','func','td','rate','upph','price'];
+        chart.data.datasets.forEach((ds, i) => { ds.data = s[keys[i]]; });
         chart.update();
     }
 
@@ -359,7 +376,7 @@
         if (chart) chart.destroy();
         const s = prepChart();
         const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
-        const colors = ['#FF9500','#34C759','#007AFF','#000','#AF52DE','#5AC8FA','#FF3B30','#FF9500','#34C759','#FF2D55'];
+        const colors = ['#FF6B35','#00C49A','#0088FE','#000000','#FF3366','#9933FF','#FF0033','#FFBB28','#00D2FF','#FF4560'];
         const dashes = [[], [], [], [], [], [], [], [5,2], [3,3], [6,2]];
         const yAxes = ['y','y','y','y','y','y','y','y1','y1','y1'];
         const datasets = labels.map((l, i) => ({
@@ -453,14 +470,14 @@
         active = u;
         if (!data[active]) await load(active);
         renderTabs(); render(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
+        dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
     }
 
     async function start() {
         for (const u of users) await load(u);
         active = users[0];
         renderTabs(); render(); initChart(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接数据库';
+        dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
         db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
             if (pending) return;
             await load(active);
