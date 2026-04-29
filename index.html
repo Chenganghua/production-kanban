@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板v2.5.9</title>
+    <title>生产数据看板 v2.5.9</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -19,6 +19,17 @@
         body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
         .app{ width:100%; max-width:1400px; display:flex; flex-direction:column; gap:16px; }
 
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
+            padding-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
         .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; box-shadow:var(--shadow-sm); border:1px solid var(--border); }
         .tab{ padding:8px 16px; border-radius:20px; background:#f0f0f3; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text); white-space:nowrap; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
         .tab.active{ background:var(--blue); color:#fff; }
@@ -30,6 +41,9 @@
         .add-tab-btn:hover{ border-color:var(--blue); color:var(--blue); }
 
         .nav-bar{ background:var(--card-bg); border-radius:var(--radius-lg); padding:14px 20px; box-shadow:var(--shadow-sm); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; border:1px solid var(--border); }
+        .board-title{ font-size:18px; font-weight:700; outline:none; border:1px solid transparent; padding:2px 8px; border-radius:8px; min-width:150px; }
+        .board-title:hover{ border-color:#ccc; }
+        .board-title:focus{ border-color:var(--blue); background:#fff; }
         .maker-info{ font-size:11px; opacity:0.8; text-align:right; }
 
         .chart-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px 10px; box-shadow:var(--shadow-md); border:1px solid var(--border); }
@@ -40,6 +54,7 @@
 
         .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; box-shadow:var(--shadow-md); border:1px solid var(--border); }
         .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+        .section-actions{ display:flex; gap:8px; align-items:center; }
         .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
         table{ width:100%; border-collapse:collapse; font-size:12px; color:#000; min-width:1300px; }
         th{ background:#f5f5f7; padding:8px 4px; font-size:11px; font-weight:700; border-bottom:2px solid #d0d0d0; white-space:nowrap; }
@@ -48,10 +63,13 @@
         input[type="number"]{ width:70px; padding:6px 4px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:12px; text-align:center; font-family:var(--font); }
         .calc-cell{ font-weight:600; white-space:nowrap; }
         .summary-row td{ background:#fff9e6; font-weight:700; }
+        .grand-total-row td{ background:#e8f0fe; font-weight:700; }
         .no-data-msg{ text-align:center; padding:20px; opacity:0.6; }
         .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
         .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
         .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; }
+        .btn-outline{ background:#fff; color:var(--blue); border:1.5px solid var(--blue); }
+        .btn-danger{ background:var(--red); color:#fff; }
         .btn-delete{ background:#fff; color:#000; border:1.5px solid #d0d0d0; padding:5px 10px; border-radius:20px; font-size:12px; cursor:pointer; }
         .sync-indicator { display:flex; align-items:center; gap:6px; font-size:12px; margin-left:12px; }
         .sync-dot { width:8px; height:8px; border-radius:50%; background:#34C759; }
@@ -62,35 +80,40 @@
 </head>
 <body>
 <div class="app">
-    <div class="tabs-bar" id="tabsBar"></div>
-    <div class="nav-bar">
-        <h2>生产数据看板</h2>
-        <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-            <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-            <div class="maker-info">网页制作人：陈港华 · 2026-04-29 · V2.5.9</div>
+    <div class="sticky-header">
+        <div class="tabs-bar" id="tabsBar"></div>
+        <div class="nav-bar">
+            <h2 class="board-title" contenteditable="true" id="boardTitle">生产数据看板</h2>
+            <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
+                <div class="maker-info">网页制作人：陈港华 · 2026-04-29 · V2.5.9</div>
+            </div>
         </div>
-    </div>
-    <div class="chart-card">
-        <div class="toggle-panel" id="togglePanel">
-            <span style="font-weight:600; margin-right:8px;">产量线：</span>
-            <label><input type="checkbox" checked data-process="后焊"> 后焊</label>
-            <label><input type="checkbox" checked data-process="组装"> 组装</label>
-            <label><input type="checkbox" checked data-process="包装"> 包装</label>
-            <label><input type="checkbox" checked data-process="total"> 总产量</label>
-            <span style="margin-left:16px; font-weight:600;">其他：</span>
-            <label><input type="checkbox" checked data-dataset="defect"> 外观不良</label>
-            <label><input type="checkbox" checked data-dataset="func"> 功能不良</label>
-            <label><input type="checkbox" checked data-dataset="totalDefect"> 不良品总数</label>
-            <label><input type="checkbox" checked data-dataset="rate"> 不良品率</label>
-            <label><input type="checkbox" checked data-dataset="upph"> UPPH</label>
-            <label><input type="checkbox" checked data-dataset="price"> 总单价</label>
+        <div class="chart-card">
+            <div class="toggle-panel" id="togglePanel">
+                <span style="font-weight:600; margin-right:8px;">产量线：</span>
+                <label><input type="checkbox" checked data-process="后焊"> 后焊</label>
+                <label><input type="checkbox" checked data-process="组装"> 组装</label>
+                <label><input type="checkbox" checked data-process="包装"> 包装</label>
+                <label><input type="checkbox" checked data-process="total"> 总产量</label>
+                <span style="margin-left:16px; font-weight:600;">其他：</span>
+                <label><input type="checkbox" checked data-dataset="defect"> 外观不良</label>
+                <label><input type="checkbox" checked data-dataset="func"> 功能不良</label>
+                <label><input type="checkbox" checked data-dataset="totalDefect"> 不良品总数</label>
+                <label><input type="checkbox" checked data-dataset="rate"> 不良品率</label>
+                <label><input type="checkbox" checked data-dataset="upph"> UPPH</label>
+                <label><input type="checkbox" checked data-dataset="price"> 总单价</label>
+            </div>
+            <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
-        <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
     </div>
     <div class="data-card">
         <div class="section-header">
             <span style="font-weight:700;">每日生产记录</span>
-            <button class="btn" id="btnAdd">＋ 添加一天</button>
+            <div class="section-actions">
+                <button class="btn btn-danger" id="btnClearAll" title="删除当前页面所有数据">🗑 删除全部</button>
+                <button class="btn" id="btnAdd">＋ 添加一天</button>
+            </div>
         </div>
         <div class="table-scroll">
             <table id="dataTable">
@@ -118,6 +141,9 @@
     let chartInstance = null;
     let pendingSync = false;
 
+    let saveTimer = null;
+    let chartUpdateTimer = null;
+
     const tabsBar = document.getElementById('tabsBar');
     const tableBody = document.getElementById('tableBody');
     const noDataMsg = document.getElementById('noDataMsg');
@@ -125,6 +151,7 @@
     const chartCanvas = document.getElementById('mainChart');
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncText');
+    const boardTitle = document.getElementById('boardTitle');
 
     function setSyncStatus(status) {
         syncDot.className = 'sync-dot';
@@ -187,7 +214,36 @@
         await supabase.from('production_records').delete().eq('id', id);
     }
 
-    async function handleInput(e) {
+    async function clearAllRecords() {
+        const allRows = records[currentBoard] || [];
+        if (allRows.length === 0) {
+            showToast('当前没有数据可删除');
+            return;
+        }
+        if (!confirm(`⚠️ 确定要删除当前页面的所有 ${allRows.length} 条记录吗？此操作不可恢复！`)) return;
+
+        setSyncStatus('syncing');
+        try {
+            const { error } = await supabase
+                .from('production_records')
+                .delete()
+                .eq('board', currentBoard);
+            if (error) throw error;
+
+            records[currentBoard] = [];
+            await renderTable();
+            updateChart();
+            saveBoardRecords(currentBoard); // 清空后保存空状态
+            setSyncStatus('connected');
+            showToast('所有记录已删除');
+        } catch (e) {
+            console.error(e);
+            setSyncStatus('error');
+            showToast('删除失败，请重试');
+        }
+    }
+
+    function handleInput(e) {
         const el = e.target;
         const date = el.dataset.date;
         const process = el.dataset.process;
@@ -198,12 +254,19 @@
         let row = boardData.find(r => r.date === date && r.process === process);
         if (!row) return;
         row[field] = value;
+
         updateRowCalcDOM(date, process);
         refreshSummaryRow(date);
-        pendingSync = true;
-        await saveBoardRecords(currentBoard);
-        pendingSync = false;
-        updateChart();
+        updateGrandTotal();
+
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+            pendingSync = true;
+            saveBoardRecords(currentBoard).then(() => { pendingSync = false; });
+        }, 500);
+
+        clearTimeout(chartUpdateTimer);
+        chartUpdateTimer = setTimeout(() => { updateChart(); }, 300);
     }
 
     function updateRowCalcDOM(date, process) {
@@ -216,14 +279,15 @@
         const defectTotal = row.cosmeticDefect + row.functionalDefect;
         const defectRate = row.production > 0 ? (defectTotal / row.production * 100).toFixed(2) : '-';
         const avgHourProd = dailyHours > 0 ? row.production / dailyHours : 0;
-        const upph = (workers > 0 && dailyHours > 0 && row.production > 0) ? (row.production / (workers * dailyHours)).toFixed(2) : '-';
-        const unitPrice = row.production > 0 ? ((dailyHours * 20) / row.production).toFixed(4) : '-';
+        const upph = (workers > 0 && dailyHours > 0 && row.production > 0) ? (row.production / (workers * dailyHours)) : 0;
+        const upphDisplay = upph > 0 ? upph.toFixed(2) : '-';
+        const unitPrice = upph > 0 ? (20 / upph).toFixed(2) : '-';
 
         tr.querySelector('.calc-rate').textContent = defectRate + (defectRate !== '-' ? '%' : '');
         tr.querySelector('.calc-total-hours').textContent = totalWorkHours.toFixed(1);
         tr.querySelector('.calc-avg-hour').textContent = avgHourProd.toFixed(2);
-        tr.querySelector('.calc-upph').textContent = upph;
-        tr.querySelector('.calc-unit-price').textContent = unitPrice !== '-' ? '¥' + parseFloat(unitPrice).toFixed(2) : '-';
+        tr.querySelector('.calc-upph').textContent = upphDisplay;
+        tr.querySelector('.calc-unit-price').textContent = unitPrice !== '-' ? '¥' + unitPrice : '-';
     }
 
     function refreshSummaryRow(date) {
@@ -237,12 +301,14 @@
             totalWorkers += r.workers;
             totalDailyHours += r.dailyHours;
             totalWorkHours += r.workers * r.dailyHours;
-            if (r.production > 0) totalPrice += (r.dailyHours * 20) / r.production;
+            const upphVal = (r.workers > 0 && r.dailyHours > 0 && r.production > 0) ? r.production / (r.workers * r.dailyHours) : 0;
+            if (upphVal > 0) totalPrice += 20 / upphVal;
         });
         const totalDefect = totalCosm + totalFunc;
         const rate = totalProd > 0 ? (totalDefect / totalProd * 100).toFixed(2) : '-';
         const avgHourProdSum = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
-        const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)).toFixed(2) : '-';
+        const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)) : 0;
+        const upphSumDisplay = upphSum > 0 ? upphSum.toFixed(2) : '-';
 
         const summaryRow = document.getElementById(`summary-${date}`);
         if (summaryRow) {
@@ -254,8 +320,49 @@
             summaryRow.querySelector('.sum-dailyhours').textContent = totalDailyHours.toFixed(1);
             summaryRow.querySelector('.sum-totalhours').textContent = totalWorkHours.toFixed(1);
             summaryRow.querySelector('.sum-avg-hour-prod').textContent = avgHourProdSum.toFixed(2);
-            summaryRow.querySelector('.sum-upph').textContent = upphSum;
+            summaryRow.querySelector('.sum-upph').textContent = upphSumDisplay;
             summaryRow.querySelector('.sum-total-price').textContent = '¥' + totalPrice.toFixed(2);
+        }
+    }
+
+    function updateGrandTotal() {
+        const all = records[currentBoard] || [];
+        if (!all.length) {
+            const gtRow = document.getElementById('grandTotalRow');
+            if (gtRow) gtRow.style.display = 'none';
+            return;
+        }
+        let totalProd = 0, totalCosm = 0, totalFunc = 0, totalWorkers = 0, totalDailyHours = 0, totalPrice = 0, totalWorkHours = 0;
+        all.forEach(r => {
+            totalProd += r.production;
+            totalCosm += r.cosmeticDefect;
+            totalFunc += r.functionalDefect;
+            totalWorkers += r.workers;
+            totalDailyHours += r.dailyHours;
+            totalWorkHours += r.workers * r.dailyHours;
+            const upphVal = (r.workers > 0 && r.dailyHours > 0 && r.production > 0) ? r.production / (r.workers * r.dailyHours) : 0;
+            if (upphVal > 0) totalPrice += 20 / upphVal;
+        });
+        const totalDefect = totalCosm + totalFunc;
+        const rateAll = totalProd > 0 ? (totalDefect / totalProd * 100).toFixed(2) : '-';
+        const avgHourAll = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
+        const upphAll = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)) : 0;
+        const upphAllDisplay = upphAll > 0 ? upphAll.toFixed(2) : '-';
+        const avgPrice = all.length > 0 ? totalPrice / all.length : 0;
+
+        const gtRow = document.getElementById('grandTotalRow');
+        if (gtRow) {
+            gtRow.style.display = '';
+            gtRow.querySelector('.gt-total-prod').textContent = totalProd;
+            gtRow.querySelector('.gt-cosmetic').textContent = totalCosm;
+            gtRow.querySelector('.gt-func').textContent = totalFunc;
+            gtRow.querySelector('.gt-rate').textContent = rateAll + (rateAll !== '-' ? '%' : '');
+            gtRow.querySelector('.gt-workers').textContent = totalWorkers;
+            gtRow.querySelector('.gt-dailyhours').textContent = totalDailyHours.toFixed(1);
+            gtRow.querySelector('.gt-totalhours').textContent = totalWorkHours.toFixed(1);
+            gtRow.querySelector('.gt-avg-hour').textContent = avgHourAll.toFixed(2);
+            gtRow.querySelector('.gt-upph').textContent = upphAllDisplay;
+            gtRow.querySelector('.gt-unit-price').textContent = '¥' + avgPrice.toFixed(2);
         }
     }
 
@@ -302,13 +409,14 @@
                 const workHours = workers * dailyHours;
                 totalProd += r.production; totalCosm += r.cosmeticDefect; totalFunc += r.functionalDefect;
                 totalWorkers += workers; totalDailyHours += dailyHours; totalWorkHours += workHours;
-                if (r.production > 0) totalPrice += (dailyHours * 20) / r.production;
 
                 const defectTotal = r.cosmeticDefect + r.functionalDefect;
                 const defectRate = r.production > 0 ? (defectTotal / r.production * 100).toFixed(2) : '-';
                 const avgHourProd = dailyHours > 0 ? r.production / dailyHours : 0;
-                const upph = (workers > 0 && dailyHours > 0 && r.production > 0) ? (r.production / (workers * dailyHours)).toFixed(2) : '-';
-                const unitPrice = r.production > 0 ? ((dailyHours * 20) / r.production).toFixed(4) : '-';
+                const upph = (workers > 0 && dailyHours > 0 && r.production > 0) ? (r.production / (workers * dailyHours)) : 0;
+                const upphDisplay = upph > 0 ? upph.toFixed(2) : '-';
+                const unitPrice = upph > 0 ? (20 / upph).toFixed(2) : '-';
+                if (upph > 0) totalPrice += 20 / upph;
 
                 html += `<tr id="row-${date}-${r.process}">
                     <td>${date}</td><td class="process-name">${r.process}</td>
@@ -320,8 +428,8 @@
                     <td><input type="number" class="inp-dailyhours" value="${dailyHours}" data-date="${date}" data-process="${r.process}" data-field="dailyHours"></td>
                     <td class="calc-cell calc-total-hours">${workHours.toFixed(1)}</td>
                     <td class="calc-cell calc-avg-hour">${avgHourProd.toFixed(2)}</td>
-                    <td class="calc-cell calc-upph">${upph}</td>
-                    <td class="calc-cell calc-unit-price">${unitPrice !== '-' ? '¥' + parseFloat(unitPrice).toFixed(2) : '-'}</td>
+                    <td class="calc-cell calc-upph">${upphDisplay}</td>
+                    <td class="calc-cell calc-unit-price">${unitPrice !== '-' ? '¥' + unitPrice : '-'}</td>
                     <td><button class="btn-delete delete-process" data-date="${date}" data-process="${r.process}">🗑</button></td>
                 </tr>`;
             });
@@ -329,7 +437,8 @@
             const totalDefect = totalCosm + totalFunc;
             const rate = totalProd > 0 ? (totalDefect / totalProd * 100).toFixed(2) : '-';
             const avgHourProdSum = totalDailyHours > 0 ? totalProd / totalDailyHours : 0;
-            const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)).toFixed(2) : '-';
+            const upphSum = (totalWorkers > 0 && totalDailyHours > 0 && totalProd > 0) ? (totalProd / (totalWorkers * totalDailyHours)) : 0;
+            const upphSumDisplay = upphSum > 0 ? upphSum.toFixed(2) : '-';
 
             html += `<tr class="summary-row" id="summary-${date}">
                 <td colspan="2" style="text-align:right;">${date} 汇总</td>
@@ -341,14 +450,30 @@
                 <td class="sum-dailyhours">${totalDailyHours.toFixed(1)}</td>
                 <td class="sum-totalhours">${totalWorkHours.toFixed(1)}</td>
                 <td class="sum-avg-hour-prod">${avgHourProdSum.toFixed(2)}</td>
-                <td class="sum-upph">${upphSum}</td>
+                <td class="sum-upph">${upphSumDisplay}</td>
                 <td class="sum-total-price"><strong>¥${totalPrice.toFixed(2)}</strong></td>
                 <td><button class="btn-delete delete-date" data-date="${date}">删全天</button></td>
             </tr>`;
         });
 
+        html += `<tr class="grand-total-row" id="grandTotalRow">
+            <td colspan="2" style="text-align:right;">全部汇总</td>
+            <td class="gt-total-prod">0</td>
+            <td class="gt-cosmetic">0</td>
+            <td class="gt-func">0</td>
+            <td class="gt-rate">-</td>
+            <td class="gt-workers">0</td>
+            <td class="gt-dailyhours">0</td>
+            <td class="gt-totalhours">0</td>
+            <td class="gt-avg-hour">0</td>
+            <td class="gt-upph">-</td>
+            <td class="gt-unit-price">-</td>
+            <td></td>
+        </tr>`;
+
         tableBody.innerHTML = html;
         bindTableEvents();
+        updateGrandTotal();
     }
 
     function bindTableEvents() {
@@ -379,11 +504,7 @@
         const today = new Date().toISOString().split('T')[0];
         const existing = (records[currentBoard] || []).some(r => r.date === today);
         if (existing) { showToast('今天已有数据'); return; }
-        const workers = prompt('输入当日人数（每行独立，可后续修改）：', '5');
-        const dailyHours = prompt('输入当日工时（小时）：', '8');
-        if (!workers || !dailyHours) return;
-        const w = parseFloat(workers), h = parseFloat(dailyHours);
-        if (isNaN(w) || isNaN(h)) return;
+        const w = 0, h = 0;
         const newRows = ['后焊','组装','包装'].map(p => ({
             date: today, process: p, production: 0, cosmeticDefect: 0, functionalDefect: 0,
             workers: w, dailyHours: h
@@ -416,9 +537,14 @@
             cosmetic.push(v.cosmetic); func.push(v.func);
             const td = v.cosmetic + v.func; totalDefect.push(td);
             defectRate.push(tp>0 ? +(td/tp*100).toFixed(2) : null);
-            upph.push(tp>0 && v.workers>0 && v.dailyHours>0 ? +(tp/(v.workers*v.dailyHours)).toFixed(2) : null);
+            const totalWorkers = v.workers, totalDailyHours = v.dailyHours;
+            const upphVal = (totalWorkers>0 && totalDailyHours>0 && tp>0) ? tp/(totalWorkers*totalDailyHours) : 0;
+            upph.push(upphVal>0 ? +upphVal.toFixed(2) : null);
             let price = 0;
-            boardData.filter(r => r.date===d).forEach(r => { if(r.production>0) price += (r.dailyHours*20)/r.production; });
+            boardData.filter(r => r.date===d).forEach(r => {
+                const up = (r.workers>0 && r.dailyHours>0 && r.production>0) ? r.production/(r.workers*r.dailyHours) : 0;
+                if (up>0) price += 20/up;
+            });
             totalPrice.push(+price.toFixed(2));
         });
         return { dates, 后焊, 组装, 包装, totalProd, cosmetic, func, totalDefect, defectRate, upph, totalPrice };
@@ -571,6 +697,7 @@
     }
 
     document.getElementById('btnAdd').addEventListener('click', addDay);
+    document.getElementById('btnClearAll').addEventListener('click', clearAllRecords);
     init();
 })();
 </script>
