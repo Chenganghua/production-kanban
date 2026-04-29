@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生产数据看板 v2.5.9</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --bg: #f2f2f7;
@@ -80,17 +80,8 @@
         .tab.active { background: var(--blue); color: #fff; }
         .tab:hover:not(.active) { background: #e5e5ea; }
 
-        .tab .edit-tab {
-            font-size: 12px;
-            opacity: 0.5;
-            cursor: pointer;
-        }
-
-        .tab .close-tab {
-            font-weight: 400;
-            opacity: 0.6;
-            cursor: pointer;
-        }
+        .tab .edit-tab { font-size: 12px; opacity: 0.5; cursor: pointer; }
+        .tab .close-tab { font-weight: 400; opacity: 0.6; cursor: pointer; }
 
         .add-tab-btn {
             padding: 8px 16px;
@@ -305,7 +296,7 @@
                     <span class="sync-dot" id="syncDot"></span>
                     <span id="syncText">连接中...</span>
                 </div>
-                <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-04-29 · V2.5.9</div>
+                <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-04-29 · v2.5.9</div>
             </div>
         </div>
 
@@ -335,7 +326,7 @@
             <span style="font-weight:700;">每日生产记录</span>
             <div style="display:flex; gap:8px;">
                 <button class="btn btn-danger" id="btnClearAll">删除全部</button>
-                <button class="btn" id="btnAdd"> 添加数据</button>
+                <button class="btn" id="btnAdd">添加数据</button>
             </div>
         </div>
         <div class="table-scroll">
@@ -376,22 +367,9 @@
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncText');
 
-    function showSyncDot(status) {
-        syncDot.className = 'sync-dot';
-        if (status === 'syncing') { syncDot.classList.add('syncing'); syncText.textContent = '同步中...'; }
-        else if (status === 'connected') { syncText.textContent = '已连接'; }
-        else { syncDot.classList.add('error'); syncText.textContent = '离线'; }
-    }
-
-    function popToast(msg) {
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        clearTimeout(window._toastTimer);
-        window._toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2000);
-    }
-
     async function fetchPageData(page) {
-        showSyncDot('syncing');
+        syncDot.className = 'sync-dot syncing';
+        syncText.textContent = '同步中...';
         try {
             const { data, error } = await supabase
                 .from('production_records')
@@ -399,24 +377,22 @@
                 .eq('board', page)
                 .order('date', { ascending: true });
             if (error) throw error;
-            if (data && data.length) {
-                allData[page] = data.map(r => ({
-                    id: r.id,
-                    date: r.date,
-                    process: r.process,
-                    production: r.production_qty || 0,
-                    cosmeticDefect: r.cosmetic_defect || 0,
-                    functionalDefect: r.functional_defect || 0,
-                    workers: r.workers || 0,
-                    dailyHours: r.daily_hours || 0
-                }));
-            } else {
-                allData[page] = [];
-            }
-            showSyncDot('connected');
+            allData[page] = data ? data.map(r => ({
+                id: r.id,
+                date: r.date,
+                process: r.process,
+                production: r.production_qty || 0,
+                cosmeticDefect: r.cosmetic_defect || 0,
+                functionalDefect: r.functional_defect || 0,
+                workers: r.workers || 0,
+                dailyHours: r.daily_hours || 0
+            })) : [];
+            syncDot.className = 'sync-dot';
+            syncText.textContent = '已连接';
         } catch (e) {
             console.error(e);
-            showSyncDot('error');
+            syncDot.className = 'sync-dot error';
+            syncText.textContent = '离线';
             allData[page] = [];
         }
     }
@@ -434,9 +410,7 @@
             workers: r.workers,
             daily_hours: r.dailyHours
         }));
-        const result = await supabase
-            .from('production_records')
-            .upsert(toUpload, { onConflict: 'date, process, board' });
+        const result = await supabase.from('production_records').upsert(toUpload, { onConflict: 'date, process, board' });
         if (result.error) console.error(result.error);
     }
 
@@ -468,15 +442,7 @@
     function drawTable() {
         const pageRows = allData[activePage] || [];
         tableBody.innerHTML = '';
-
-        if (!pageRows.length) {
-            document.getElementById('noDataMsg').style.display = 'block';
-            document.getElementById('dataTable').style.display = 'none';
-            return;
-        }
-
-        document.getElementById('noDataMsg').style.display = 'none';
-        document.getElementById('dataTable').style.display = '';
+        if (!pageRows.length) return;
 
         const grouped = {};
         pageRows.forEach(r => {
@@ -515,12 +481,12 @@
                 htmlRows += `<tr id="row-${date}-${r.process}">
                     <td>${date}</td>
                     <td class="process-name">${r.process}</td>
-                    <td><input type="number" class="inp-production" value="${r.production}" data-date="${date}" data-process="${r.process}" data-fld="production"></td>
-                    <td><input type="number" class="inp-cosmetic" value="${r.cosmeticDefect}" data-date="${date}" data-process="${r.process}" data-fld="cosmeticDefect"></td>
-                    <td><input type="number" class="inp-functional" value="${r.functionalDefect}" data-date="${date}" data-process="${r.process}" data-fld="functionalDefect"></td>
+                    <td><input type="number" value="${r.production}" data-date="${date}" data-process="${r.process}" data-fld="production"></td>
+                    <td><input type="number" value="${r.cosmeticDefect}" data-date="${date}" data-process="${r.process}" data-fld="cosmeticDefect"></td>
+                    <td><input type="number" value="${r.functionalDefect}" data-date="${date}" data-process="${r.process}" data-fld="functionalDefect"></td>
                     <td class="calc-cell calc-rate">${formatRate(rate)}</td>
-                    <td><input type="number" class="inp-workers" value="${workers}" data-date="${date}" data-process="${r.process}" data-fld="workers"></td>
-                    <td><input type="number" class="inp-dailyhours" value="${hours}" data-date="${date}" data-process="${r.process}" data-fld="dailyHours"></td>
+                    <td><input type="number" value="${workers}" data-date="${date}" data-process="${r.process}" data-fld="workers"></td>
+                    <td><input type="number" value="${hours}" data-date="${date}" data-process="${r.process}" data-fld="dailyHours"></td>
                     <td class="calc-cell calc-total-hours">${workHours.toFixed(1)}</td>
                     <td class="calc-cell calc-avg-hour">${avgHour.toFixed(2)}</td>
                     <td class="calc-cell calc-upph">${formatValue(upph)}</td>
@@ -536,16 +502,16 @@
 
             htmlRows += `<tr class="summary-row" id="summary-${date}">
                 <td colspan="2" style="text-align:right;">${date} 汇总</td>
-                <td class="sum-total-prod"><strong>${dayProd}</strong></td>
-                <td class="sum-cosmetic">${dayCosmetic}</td>
-                <td class="sum-func">${dayFunc}</td>
-                <td class="sum-rate">${formatRate(dayRate)}</td>
-                <td class="sum-workers">${dayWorkers}</td>
-                <td class="sum-dailyhours">${dayHours.toFixed(1)}</td>
-                <td class="sum-totalhours">${dayWorkHours.toFixed(1)}</td>
-                <td class="sum-avg-hour-prod">${dayAvgHour.toFixed(2)}</td>
-                <td class="sum-upph">${formatValue(dayUPPH)}</td>
-                <td class="sum-total-price"><strong>¥${dayPrice.toFixed(2)}</strong></td>
+                <td><strong>${dayProd}</strong></td>
+                <td>${dayCosmetic}</td>
+                <td>${dayFunc}</td>
+                <td>${formatRate(dayRate)}</td>
+                <td>${dayWorkers}</td>
+                <td>${dayHours.toFixed(1)}</td>
+                <td>${dayWorkHours.toFixed(1)}</td>
+                <td>${dayAvgHour.toFixed(2)}</td>
+                <td>${formatValue(dayUPPH)}</td>
+                <td><strong>¥${dayPrice.toFixed(2)}</strong></td>
                 <td><button class="btn-delete delete-date" data-date="${date}">删全天</button></td>
             </tr>`;
         });
@@ -619,11 +585,9 @@
         if (!row) return;
         const tr = document.getElementById(`row-${date}-${process}`);
         if (!tr) return;
-
         const upph = computeUPPH(row.production, row.workers, row.dailyHours);
         const defectTotal = row.cosmeticDefect + row.functionalDefect;
         const price = upph > 0 ? 20 / upph : 0;
-
         tr.querySelector('.calc-rate').textContent = formatRate(defectRate(row.production, defectTotal));
         tr.querySelector('.calc-total-hours').textContent = (row.workers * row.dailyHours).toFixed(1);
         tr.querySelector('.calc-avg-hour').textContent = (row.dailyHours > 0 ? row.production / row.dailyHours : 0).toFixed(2);
@@ -636,7 +600,6 @@
         if (!rows.length) return;
         const sr = document.getElementById('summary-' + date);
         if (!sr) return;
-
         let prod = 0, cosmetic = 0, func = 0, workers = 0, hours = 0, workHours = 0, price = 0;
         rows.forEach(r => {
             prod += r.production;
@@ -648,22 +611,20 @@
             const upph = computeUPPH(r.production, r.workers, r.dailyHours);
             if (upph > 0) price += 20 / upph;
         });
-
         const totalDefect = cosmetic + func;
         const rate = defectRate(prod, totalDefect);
         const avgHour = hours > 0 ? prod / hours : 0;
         const upph = computeUPPH(prod, workers, hours);
-
-        sr.querySelector('.sum-total-prod').textContent = prod;
-        sr.querySelector('.sum-cosmetic').textContent = cosmetic;
-        sr.querySelector('.sum-func').textContent = func;
-        sr.querySelector('.sum-rate').textContent = formatRate(rate);
-        sr.querySelector('.sum-workers').textContent = workers;
-        sr.querySelector('.sum-dailyhours').textContent = hours.toFixed(1);
-        sr.querySelector('.sum-totalhours').textContent = workHours.toFixed(1);
-        sr.querySelector('.sum-avg-hour-prod').textContent = avgHour.toFixed(2);
-        sr.querySelector('.sum-upph').textContent = formatValue(upph);
-        sr.querySelector('.sum-total-price').textContent = '¥' + price.toFixed(2);
+        sr.querySelector('td:nth-child(3)').textContent = prod;
+        sr.querySelector('td:nth-child(4)').textContent = cosmetic;
+        sr.querySelector('td:nth-child(5)').textContent = func;
+        sr.querySelector('td:nth-child(6)').textContent = formatRate(rate);
+        sr.querySelector('td:nth-child(7)').textContent = workers;
+        sr.querySelector('td:nth-child(8)').textContent = hours.toFixed(1);
+        sr.querySelector('td:nth-child(9)').textContent = workHours.toFixed(1);
+        sr.querySelector('td:nth-child(10)').textContent = avgHour.toFixed(2);
+        sr.querySelector('td:nth-child(11)').textContent = formatValue(upph);
+        sr.querySelector('td:nth-child(12)').textContent = '¥' + price.toFixed(2);
     }
 
     function onInputChange(e) {
@@ -672,21 +633,17 @@
         const process = el.dataset.process;
         const field = el.dataset.fld;
         const val = parseFloat(el.value) || 0;
-
         const row = (allData[activePage] || []).find(r => r.date === date && r.process === process);
         if (!row) return;
         row[field] = val;
-
         updateRowDisplay(date, process);
         updateDaySummary(date);
         refreshGrandTotal();
-
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
             isUploading = true;
             pushPageToCloud(activePage).then(() => { isUploading = false; });
         }, 500);
-
         clearTimeout(chartTimer);
         chartTimer = setTimeout(updateChart, 300);
     }
@@ -720,9 +677,11 @@
     async function onAddDay() {
         const today = new Date().toISOString().split('T')[0];
         const chosen = prompt('请输入日期（YYYY-MM-DD）：', today);
-        if (!chosen || !/^\d{4}-\d{2}-\d{2}$/.test(chosen)) { popToast('日期格式错误'); return; }
-        if ((allData[activePage] || []).some(r => r.date === chosen)) { popToast(chosen + ' 已存在'); return; }
-
+        if (!chosen || !/^\d{4}-\d{2}-\d{2}$/.test(chosen)) { return; }
+        if ((allData[activePage] || []).some(r => r.date === chosen)) {
+            alert(chosen + ' 已存在');
+            return;
+        }
         const newRows = ['后焊', '组装', '包装'].map(p => ({
             date: chosen, process: p, production: 0, cosmeticDefect: 0, functionalDefect: 0,
             workers: 0, dailyHours: 0
@@ -732,26 +691,25 @@
         await fetchPageData(activePage);
         drawTable();
         updateChart();
-        popToast('已添加 ' + chosen);
     }
 
     async function onClearAll() {
         const rows = allData[activePage] || [];
-        if (!rows.length) { popToast('没有数据可以删除'); return; }
+        if (!rows.length) return;
         if (!confirm('删除全部记录不可恢复哦！')) return;
-
-        showSyncDot('syncing');
+        syncDot.className = 'sync-dot syncing';
+        syncText.textContent = '同步中...';
         try {
             await supabase.from('production_records').delete().eq('board', activePage);
             allData[activePage] = [];
             drawTable();
             updateChart();
-            showSyncDot('connected');
-            popToast('已全部删除');
+            syncDot.className = 'sync-dot';
+            syncText.textContent = '已连接';
         } catch (e) {
             console.error(e);
-            showSyncDot('error');
-            popToast('删除失败');
+            syncDot.className = 'sync-dot error';
+            syncText.textContent = '离线';
         }
     }
 
@@ -766,10 +724,8 @@
             map[r.date].workers += r.workers;
             map[r.date].hours += r.dailyHours;
         });
-
         const dates = Object.keys(map).sort();
         const sets = { dates, 后焊: [], 组装: [], 包装: [], total: [], cosmetic: [], func: [], totalDefect: [], rate: [], upph: [], price: [] };
-
         dates.forEach(d => {
             const v = map[d];
             sets.后焊.push(v.后焊); sets.组装.push(v.组装); sets.包装.push(v.包装);
@@ -788,7 +744,6 @@
             });
             sets.price.push(+priceSum.toFixed(2));
         });
-
         return sets;
     }
 
@@ -821,4 +776,10 @@
                     { label: '组装产量', data: d.组装, borderColor: '#34C759', tension: 0.3, yAxisID: 'y' },
                     { label: '包装产量', data: d.包装, borderColor: '#007AFF', tension: 0.3, yAxisID: 'y' },
                     { label: '总产量', data: d.total, borderColor: '#000', borderWidth: 3, tension: 0.3, yAxisID: 'y' },
-                    { label: '外观不良', data: d.cosmetic,
+                    { label: '外观不良', data: d.cosmetic, borderColor: '#AF52DE', tension: 0.3, yAxisID: 'y' },
+                    { label: '功能不良', data: d.func, borderColor: '#5AC8FA', tension: 0.3, yAxisID: 'y' },
+                    { label: '不良品总数', data: d.totalDefect, borderColor: '#FF3B30', tension: 0.3, yAxisID: 'y' },
+                    { label: '不良品率', data: d.rate, borderColor: '#FF9500', borderDash: [5, 2], tension: 0.3, yAxisID: 'y1' },
+                    { label: 'UPPH', data: d.upph, borderColor: '#34C759', borderDash: [3, 3], tension: 0.3, yAxisID: 'y1' },
+                    { label: '总单价', data: d.price, borderColor: '#FF2D55', borderDash: [6, 2], tension: 0.3, yAxisID: 'y1' }
+               
