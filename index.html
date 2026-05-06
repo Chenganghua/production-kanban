@@ -17,17 +17,11 @@
         }
         *{ margin:0; padding:0; box-sizing:border-box; }
         body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
-        .app{ width:100%; max-width:1600px; display:flex; flex-direction:column; gap:16px; }
+        .app{ width:100%; max-width:1700px; display:flex; flex-direction:column; gap:16px; }
 
         .sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg);
-            padding-bottom: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+            position: sticky; top: 0; z-index: 100; background: var(--bg);
+            padding-bottom: 8px; display: flex; flex-direction: column; gap: 16px;
         }
 
         .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
@@ -53,11 +47,11 @@
         .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
         .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
         .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
-        table{ width:100%; border-collapse:collapse; font-size:11px; min-width:1700px; }
-        th{ background:#f5f5f7; padding:6px 3px; font-size:10px; font-weight:700; border-bottom:2px solid #d0d0d0; }
-        td{ padding:5px 3px; text-align:center; border-bottom:1px solid #ececec; }
+        table{ width:100%; border-collapse:collapse; font-size:11px; min-width:1800px; }
+        th{ background:#f5f5f7; padding:6px 4px; font-size:10px; font-weight:700; border-bottom:2px solid #d0d0d0; }
+        td{ padding:5px 4px; text-align:center; border-bottom:1px solid #ececec; }
         td.process-name{ font-weight:600; background:#fafafa; }
-        input[type="number"]{ width:60px; padding:5px 2px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:11px; text-align:center; font-family:var(--font); }
+        input[type="number"]{ width:65px; padding:5px 2px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:11px; text-align:center; font-family:var(--font); }
         .calc-cell{ font-weight:600; }
         .summary-row td{ background:#fff9e6; font-weight:700; }
         .grand-total-row td{ background:#e8f0fe; font-weight:700; }
@@ -74,9 +68,9 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">技改生产数据看板</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据库连接中...</span></div>
                 <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-5-6 · V2.6.2</div>
             </div>
         </div>
@@ -97,13 +91,15 @@
         </div>
         <div class="table-scroll">
             <table id="dataTable">
-                <thead><tr>
-                    <th>日期</th><th>工序</th><th>生产数量</th>
-                    <th>外观制程不良</th><th>外观来料不良</th>
-                    <th>功能制程不良</th><th>功能来料不良</th>
-                    <th>不良品总数</th><th>不良品率</th>
-                    <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
-                </tr></thead>
+                <thead>
+                    <tr>
+                        <th>日期</th><th>工序</th><th>生产数量</th>
+                        <th>外观制程不良</th><th>外观来料不良</th>
+                        <th>功能制程不良</th><th>功能来料不良</th>
+                        <th>不良品总数</th><th>不良品率</th>
+                        <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
+                    </tr>
+                </thead>
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
@@ -154,7 +150,7 @@
                 workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
             dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
-        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '已断开数据库'; data[u] = []; }
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线'; data[u] = []; }
     }
 
     async function save(u) {
@@ -213,7 +209,7 @@
                     <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
                     <td class="calc-cell">${fmtV(up)}</td>
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
-                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">🗑</button></td>
+                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">×</button></td>
                 </tr>`;
             });
             const ttd = tcp + tcm + tfp + tfm;
@@ -229,7 +225,24 @@
             </tr>`;
         });
 
-        h += `<tr class="grand-total-row" id="gt"><td colspan="2" style="text-align:right;">全部汇总</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td></td></tr>`;
+        h += `<tr class="grand-total-row" id="gt">
+            <td colspan="2" style="text-align:right;">全部汇总</td>
+            <td class="gt-prod">0</td>
+            <td class="gt-cosProc">0</td>
+            <td class="gt-cosMat">0</td>
+            <td class="gt-funcProc">0</td>
+            <td class="gt-funcMat">0</td>
+            <td class="gt-totalDef">0</td>
+            <td class="gt-rate">-</td>
+            <td class="gt-workers">0</td>
+            <td class="gt-dailyHrs">0</td>
+            <td class="gt-totalHrs">0</td>
+            <td class="gt-avgHr">0</td>
+            <td class="gt-upph">-</td>
+            <td class="gt-unitPrice">-</td>
+            <td></td>
+        </tr>`;
+
         tbody.innerHTML = h;
         bindEvts();
         updateGT();
@@ -241,6 +254,7 @@
         if (!gt) return;
         if (!all.length) { gt.style.display = 'none'; return; }
         gt.style.display = '';
+
         let tp = 0, tcp = 0, tcm = 0, tfp = 0, tfm = 0, tw = 0, th = 0, twh = 0;
         const dp = {};
         all.forEach(r => {
@@ -254,14 +268,20 @@
         const ttd = tcp + tcm + tfp + tfm;
         const days = Object.keys(dp).length;
         let sumPr = 0; Object.values(dp).forEach(v => sumPr += v);
-        const cells = gt.children;
-        cells[2].textContent = tp; cells[3].textContent = tcp; cells[4].textContent = tcm;
-        cells[5].textContent = tfp; cells[6].textContent = tfm; cells[7].textContent = ttd;
-        cells[8].textContent = fmtR(defectRate(tp, ttd));
-        cells[9].textContent = tw; cells[10].textContent = th.toFixed(1); cells[11].textContent = twh.toFixed(1);
-        cells[12].textContent = (th > 0 ? tp / th : 0).toFixed(2);
-        cells[13].textContent = fmtV(upph(tp, tw, th));
-        cells[14].textContent = '¥' + (days > 0 ? sumPr / days : 0).toFixed(2);
+
+        gt.querySelector('.gt-prod').textContent = tp;
+        gt.querySelector('.gt-cosProc').textContent = tcp;
+        gt.querySelector('.gt-cosMat').textContent = tcm;
+        gt.querySelector('.gt-funcProc').textContent = tfp;
+        gt.querySelector('.gt-funcMat').textContent = tfm;
+        gt.querySelector('.gt-totalDef').textContent = ttd;
+        gt.querySelector('.gt-rate').textContent = fmtR(defectRate(tp, ttd));
+        gt.querySelector('.gt-workers').textContent = tw;
+        gt.querySelector('.gt-dailyHrs').textContent = th.toFixed(1);
+        gt.querySelector('.gt-totalHrs').textContent = twh.toFixed(1);
+        gt.querySelector('.gt-avgHr').textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        gt.querySelector('.gt-upph').textContent = fmtV(upph(tp, tw, th));
+        gt.querySelector('.gt-unitPrice').textContent = '¥' + (days > 0 ? sumPr / days : 0).toFixed(2);
     }
 
     function bindEvts() {
@@ -448,7 +468,7 @@
     }
 
     function renderTabs() {
-        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab"></span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
             if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
