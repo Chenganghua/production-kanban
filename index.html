@@ -44,6 +44,15 @@
         .chart-wrapper{ height:400px; }
         .toggle-panel{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; font-size:12px; align-items:center; }
         .toggle-panel label{ display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+
+        .header-link {
+            display: flex; justify-content: flex-end; margin-bottom: 6px;
+        }
+        .header-link a {
+            color: var(--blue); text-decoration: none; font-size: 13px; font-weight: 500;
+        }
+        .header-link a:hover { text-decoration: underline; }
+
         .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
         .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
         .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
@@ -68,15 +77,18 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">技改生产数据看板-可编辑</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据库连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">网页制作：陈港华 · 2026-5-4</div>
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据连接中...</span></div>
+                <div style="font-size:11px; opacity:0.8;">网页制作：陈港华 · 2026-5-5</div>
             </div>
         </div>
     </div>
 
     <div class="chart-card">
+        <div class="header-link">
+            <a href="#" id="taktTimeLink">工序工位节拍数据</a>
+        </div>
         <div class="toggle-panel" id="togglePanel"></div>
         <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
     </div>
@@ -128,6 +140,14 @@
     const txt = document.getElementById('syncText');
     const togglePanel = document.getElementById('togglePanel');
 
+    document.getElementById('taktTimeLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = prompt('网址：', 'https://');
+        if (url && url.trim()) {
+            window.open(url.trim(), '_blank');
+        }
+    });
+
     function showMsg(msg) {
         toast.textContent = msg;
         toast.classList.add('show');
@@ -136,7 +156,7 @@
     }
 
     async function load(u) {
-        dot.className = 'sync-dot syncing'; txt.textContent = '数据库同步中...';
+        dot.className = 'sync-dot syncing'; txt.textContent = '数据同步中...';
         try {
             const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
             if (error) throw error;
@@ -149,7 +169,7 @@
                 funcMat: r.functional_material_defect || 0,
                 workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
-            dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
+            dot.className = 'sync-dot'; txt.textContent = '数据已连接';
         } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线了'; data[u] = []; }
     }
 
@@ -479,7 +499,7 @@
     }
 
     function renderTabs() {
-        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab"></span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
             if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
@@ -499,4 +519,15 @@
             e.stopPropagation();
             const u = s.parentElement.dataset.u;
             if (!confirm('删除页面？')) return;
-            await db.from('production_records
+            await db.from('production_records').delete().eq('board', u);
+            delete data[u]; users = users.filter(b => b !== u);
+            if (active === u) active = users[0];
+            renderTabs(); render(); updChart();
+        }));
+        tabsBar.querySelector('.add-tab-btn').addEventListener('click', () => {
+            const n = prompt('新页面：');
+            if (!n || !n.trim() || users.includes(n.trim())) return;
+            users.push(n.trim()); active = n.trim(); data[active] = [];
+            renderTabs(); render(); updChart();
+        });
+    }
