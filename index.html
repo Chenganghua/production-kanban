@@ -70,9 +70,9 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">技改生产数据看板</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据连接中...</span></div>
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
                 <div style="font-size:11px; opacity:0.8;">网页制作：陈港华</div>
             </div>
         </div>
@@ -109,7 +109,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -128,10 +128,13 @@
     const dot = document.getElementById('syncDot');
     const txt = document.getElementById('syncText');
     const togglePanel = document.getElementById('togglePanel');
+    const btnAdd = document.getElementById('btnAdd');
+    const btnClearAll = document.getElementById('btnClearAll');
+    const taktTimeLink = document.getElementById('taktTimeLink');
 
-    document.getElementById('taktTimeLink').addEventListener('click', function(e) {
+    taktTimeLink.addEventListener('click', function(e) {
         e.preventDefault();
-        const url = prompt('工序网址：', 'https://');
+        const url = prompt('待完善网址：', 'https://');
         if (url && url.trim()) window.open(url.trim(), '_blank');
     });
 
@@ -466,7 +469,7 @@
     }
 
     function renderTabs() {
-        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab"></span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
             if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
@@ -511,17 +514,18 @@
         for (const u of users) await load(u);
         active = users[0];
         renderTabs(); render(); initChart(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        dot.className = 'sync-dot'; txt.textContent = '数据已连接';
         db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
             if (pending) return;
             await load(active); render(); updChart();
         }).subscribe();
     }
 
-    document.getElementById('btnAdd').addEventListener('click', addDay);
-    document.getElementById('btnClearAll').addEventListener('click', clearAll);
+    btnAdd.addEventListener('click', addDay);
+    btnClearAll.addEventListener('click', clearAll);
+
     start();
-})();
+});
 </script>
 </body>
 </html>
