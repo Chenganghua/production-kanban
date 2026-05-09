@@ -68,10 +68,10 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
+            <h2 class="board-title" contenteditable="true">技改生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据库连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">网页制作人：陈港华 · 2026-5-6 · V2.6.2</div>
+                <div style="font-size:11px; opacity:0.8;">网页制作：陈港华 · 2026-5-4</div>
             </div>
         </div>
     </div>
@@ -150,7 +150,7 @@
                 workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
             dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
-        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线'; data[u] = []; }
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线了'; data[u] = []; }
     }
 
     async function save(u) {
@@ -177,7 +177,10 @@
     function render() {
         const rows = data[active] || [];
         tbody.innerHTML = '';
-        if (!rows.length) return;
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="16" style="padding:30px; opacity:0.5;">暂无数据，点击“添加数据”开始</td></tr>';
+            return;
+        }
 
         const grp = {};
         rows.forEach(r => { if (!grp[r.date]) grp[r.date] = []; grp[r.date].push(r); });
@@ -209,7 +212,7 @@
                     <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
                     <td class="calc-cell">${fmtV(up)}</td>
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
-                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">×</button></td>
+                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">❌️</button></td>
                 </tr>`;
             });
             const ttd = tcp + tcm + tfp + tfm;
@@ -365,23 +368,31 @@
     });
 
     async function addDay() {
-        const d = prompt('日期 (YYYY-MM-DD)：', new Date().toISOString().split('T')[0]);
+        const today = new Date().toISOString().split('T')[0];
+        const d = prompt('请输入日期 (YYYY-MM-DD)：', today);
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-        if ((data[active] || []).some(r => r.date === d)) { showMsg('已存在'); return; }
+        if ((data[active] || []).some(r => r.date === d)) {
+            showMsg('日期 ' + d + ' 已存在，请勿重复添加');
+            return;
+        }
         const rows = ['后焊','组装','包装'].map(p => ({
             date: d, process: p, prod: 0, cosProc: 0, cosMat: 0, funcProc: 0, funcMat: 0, workers: 0, hrs: 0
         }));
         data[active] = (data[active] || []).concat(rows);
         await save(active);
         await load(active);
-        render(); updChart();
+        render();
+        updChart();
+        showMsg('已添加 ' + d);
     }
 
     async function clearAll() {
-        if (!confirm('删除全部？')) return;
+        if (!confirm('确定删除当前页面所有数据？此操作不可恢复。')) return;
         await db.from('production_records').delete().eq('board', active);
         data[active] = [];
-        render(); updChart();
+        render();
+        updChart();
+        showMsg('已清除全部数据');
     }
 
     function prepChart() {
@@ -488,42 +499,4 @@
             e.stopPropagation();
             const u = s.parentElement.dataset.u;
             if (!confirm('删除页面？')) return;
-            await db.from('production_records').delete().eq('board', u);
-            delete data[u]; users = users.filter(b => b !== u);
-            if (active === u) active = users[0];
-            renderTabs(); render(); updChart();
-        }));
-        tabsBar.querySelector('.add-tab-btn').addEventListener('click', () => {
-            const n = prompt('新页面：');
-            if (!n || !n.trim() || users.includes(n.trim())) return;
-            users.push(n.trim()); active = n.trim(); data[active] = [];
-            renderTabs(); render(); updChart();
-        });
-    }
-
-    async function switchUser(u) {
-        if (u === active) return;
-        active = u;
-        if (!data[active]) await load(active);
-        renderTabs(); render(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
-    }
-
-    async function start() {
-        for (const u of users) await load(u);
-        active = users[0];
-        renderTabs(); render(); initChart(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '数据库已连接';
-        db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
-            if (pending) return;
-            await load(active); render(); updChart();
-        }).subscribe();
-    }
-
-    document.getElementById('btnAdd').addEventListener('click', addDay);
-    document.getElementById('btnClearAll').addEventListener('click', clearAll);
-    start();
-})();
-</script>
-</body>
-</html>
+            await db.from('production_records
