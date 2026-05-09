@@ -77,17 +77,17 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑啊</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">数据连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">网页制作：陈港华 · 2026-5-5</div>
+                <div style="font-size:11px; opacity:0.8;">网页制作：陈港华 </div>
             </div>
         </div>
     </div>
 
     <div class="chart-card">
         <div class="header-link">
-            <a href="#" id="taktTimeLink">工序工位节拍数据</a>
+            <a href="#" id="taktTimeLink">产品工位节拍数据</a>
         </div>
         <div class="toggle-panel" id="togglePanel"></div>
         <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
@@ -127,7 +127,7 @@
 
     let users = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let active = users[0];
-    let data = {};
+    let allData = {};
     let chart;
     let pending = false;
     let dirty = false;
@@ -160,7 +160,7 @@
         try {
             const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
             if (error) throw error;
-            data[u] = rows ? rows.map(r => ({
+            allData[u] = rows ? rows.map(r => ({
                 id: r.id, date: r.date, process: r.process,
                 prod: r.production_qty || 0,
                 cosProc: r.cosmetic_process_defect || 0,
@@ -170,11 +170,11 @@
                 workers: r.workers || 0, hrs: r.daily_hours || 0
             })) : [];
             dot.className = 'sync-dot'; txt.textContent = '数据已连接';
-        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线了'; data[u] = []; }
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线啦'; allData[u] = []; }
     }
 
     async function save(u) {
-        const rows = data[u] || [];
+        const rows = allData[u] || [];
         if (!rows.length) return;
         const { error } = await db.from('production_records').upsert(rows.map(r => ({
             date: r.date, process: r.process, board: u,
@@ -195,7 +195,7 @@
     function fmtV(v, isP) { if (v === null || isNaN(v) || v <= 0) return '-'; return isP ? '¥' + v.toFixed(2) : v.toFixed(2); }
 
     function render() {
-        const rows = data[active] || [];
+        const rows = allData[active] || [];
         tbody.innerHTML = '';
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="16" style="padding:30px; opacity:0.5;">暂无数据，点击“添加数据”开始</td></tr>';
@@ -272,7 +272,7 @@
     }
 
     function updateGT() {
-        const all = data[active] || [];
+        const all = allData[active] || [];
         const gt = document.getElementById('gt');
         if (!gt) return;
         if (!all.length) { gt.style.display = 'none'; return; }
@@ -311,7 +311,7 @@
         document.querySelectorAll('input').forEach(i => {
             i.addEventListener('input', function(e) {
                 const el = e.target;
-                const row = (data[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
+                const row = (allData[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
                 if (!row) return;
                 row[el.dataset.f] = parseFloat(el.value) || 0;
                 updRow(el.dataset.d, el.dataset.p);
@@ -324,23 +324,23 @@
 
         document.querySelectorAll('.del-p').forEach(b => b.addEventListener('click', async function() {
             if (!confirm('删除记录？')) return;
-            const row = (data[active] || []).find(r => r.date === this.dataset.d && r.process === this.dataset.p);
+            const row = (allData[active] || []).find(r => r.date === this.dataset.d && r.process === this.dataset.p);
             if (row && row.id) await db.from('production_records').delete().eq('id', row.id);
-            data[active] = (data[active] || []).filter(r => !(r.date === this.dataset.d && r.process === this.dataset.p));
+            allData[active] = (allData[active] || []).filter(r => !(r.date === this.dataset.d && r.process === this.dataset.p));
             render(); updChart();
         }));
 
         document.querySelectorAll('.del-d').forEach(b => b.addEventListener('click', async function() {
             if (!confirm('删除全天？')) return;
-            const rows = (data[active] || []).filter(r => r.date === this.dataset.d);
+            const rows = (allData[active] || []).filter(r => r.date === this.dataset.d);
             for (const r of rows) if (r.id) await db.from('production_records').delete().eq('id', r.id);
-            data[active] = (data[active] || []).filter(r => r.date !== this.dataset.d);
+            allData[active] = (allData[active] || []).filter(r => r.date !== this.dataset.d);
             render(); updChart();
         }));
     }
 
     function updRow(d, p) {
-        const row = (data[active] || []).find(r => r.date === d && r.process === p);
+        const row = (allData[active] || []).find(r => r.date === d && r.process === p);
         if (!row) return;
         const tr = document.getElementById('r-' + d + '-' + p);
         if (!tr) return;
@@ -356,7 +356,7 @@
     }
 
     function updSum(d) {
-        const rows = (data[active] || []).filter(r => r.date === d);
+        const rows = (allData[active] || []).filter(r => r.date === d);
         if (!rows.length) return;
         const tr = document.getElementById('s-' + d);
         if (!tr) return;
@@ -391,14 +391,14 @@
         const today = new Date().toISOString().split('T')[0];
         const d = prompt('请输入日期 (YYYY-MM-DD)：', today);
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-        if ((data[active] || []).some(r => r.date === d)) {
+        if ((allData[active] || []).some(r => r.date === d)) {
             showMsg('日期 ' + d + ' 已存在，请勿重复添加');
             return;
         }
         const rows = ['后焊','组装','包装'].map(p => ({
             date: d, process: p, prod: 0, cosProc: 0, cosMat: 0, funcProc: 0, funcMat: 0, workers: 0, hrs: 0
         }));
-        data[active] = (data[active] || []).concat(rows);
+        allData[active] = (allData[active] || []).concat(rows);
         await save(active);
         await load(active);
         render();
@@ -409,14 +409,14 @@
     async function clearAll() {
         if (!confirm('确定删除当前页面所有数据？此操作不可恢复。')) return;
         await db.from('production_records').delete().eq('board', active);
-        data[active] = [];
+        allData[active] = [];
         render();
         updChart();
         showMsg('已清除全部数据');
     }
 
     function prepChart() {
-        const rows = data[active] || [];
+        const rows = allData[active] || [];
         const map = {};
         rows.forEach(r => {
             if (!map[r.date]) map[r.date] = { 后焊:0, 组装:0, 包装:0, cos:0, func:0, w:0, h:0 };
@@ -499,7 +499,7 @@
     }
 
     function renderTabs() {
-        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab"></span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
             if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
@@ -509,7 +509,7 @@
             const old = s.parentElement.dataset.u;
             const n = prompt('新名称：', old);
             if (n && n.trim() && n !== old && !users.includes(n.trim())) {
-                data[n] = data[old] || []; delete data[old];
+                allData[n] = allData[old] || []; delete allData[old];
                 users = users.map(u => u === old ? n.trim() : u);
                 if (active === old) active = n.trim();
                 renderTabs(); render(); updChart();
@@ -520,14 +520,10 @@
             const u = s.parentElement.dataset.u;
             if (!confirm('删除页面？')) return;
             await db.from('production_records').delete().eq('board', u);
-            delete data[u]; users = users.filter(b => b !== u);
+            delete allData[u]; users = users.filter(b => b !== u);
             if (active === u) active = users[0];
             renderTabs(); render(); updChart();
         }));
         tabsBar.querySelector('.add-tab-btn').addEventListener('click', () => {
             const n = prompt('新页面：');
-            if (!n || !n.trim() || users.includes(n.trim())) return;
-            users.push(n.trim()); active = n.trim(); data[active] = [];
-            renderTabs(); render(); updChart();
-        });
-    }
+            if (!n || !n.trim() || users.includes
