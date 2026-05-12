@@ -88,8 +88,8 @@
         <div class="section-header">
             <span style="font-weight:700;">每日生产记录</span>
             <div style="display:flex; gap:8px;">
-                <button class="btn btn-danger" id="btnClearAll">删除全部</button>
-                <button class="btn" id="btnAdd">添加数据</button>
+                <button class="btn btn-danger" id="btnClearAll">❌️删除全部</button>
+                <button class="btn" id="btnAdd">＋ 添加数据</button>
             </div>
         </div>
         <div class="table-scroll">
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     taktTimeLink.addEventListener('click', function(e) {
         e.preventDefault();
-        const url = prompt('待完善网址：', 'https://');
+        const url = prompt('待更新网址：', 'https://');
         if (url && url.trim()) window.open(url.trim(), '_blank');
     });
 
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderTabs() {
-        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab"></span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
         tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
             if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
             switchUser(b.dataset.u);
@@ -507,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
         active = u;
         if (!allData[active]) await load(active);
         renderTabs(); render(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        dot.className = 'sync-dot'; txt.textContent = '数据已连接';
     }
 
     async function start() {
