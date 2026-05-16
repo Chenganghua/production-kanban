@@ -68,7 +68,7 @@
             <h2 class="board-title" contenteditable="true">生产数据看板</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF16</div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF17</div>
             </div>
         </div>
     </div>
@@ -122,7 +122,6 @@
     const txt = document.getElementById('syncText');
     const togglePanel = document.getElementById('togglePanel');
 
-    // 超链接
     document.getElementById('taktTimeLink').addEventListener('click', function(e) {
         e.preventDefault();
         const url = prompt('请输入工序工位节拍数据的网址：', 'https://');
@@ -156,7 +155,7 @@
     async function save(u) {
         const rows = allData[u] || [];
         if (!rows.length) return;
-        await db.from('production_records').upsert(rows.map(r => ({
+        const { error } = await db.from('production_records').upsert(rows.map(r => ({
             date: r.date, process: r.process, board: u,
             production_qty: r.prod,
             cosmetic_process_defect: r.cosProc,
@@ -165,6 +164,11 @@
             functional_material_defect: r.funcMat,
             workers: r.workers, daily_hours: r.hrs
         })), { onConflict: 'date, process, board' });
+        if (error) {
+            console.error('保存失败：', error);
+            showMsg('保存失败，请检查控制台');
+            throw error;
+        }
     }
 
     function totalDefect(r) { return r.cosProc + r.cosMat + r.funcProc + r.funcMat; }
@@ -344,11 +348,11 @@
         if (e.target.tagName !== 'INPUT') {
             dirty = false;
             pending = true;
-            save(active).then(() => { pending = false; updChart(); });
+            save(active).then(() => { pending = false; updChart(); }).catch(() => { pending = false; });
         }
     });
 
-    function addDay() {
+    async function addDay() {
         const today = new Date().toISOString().split('T')[0];
         const d = prompt('请输入日期 (YYYY-MM-DD)：', today);
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
@@ -360,13 +364,17 @@
             date: d, process: p, prod: 0, cosProc: 0, cosMat: 0, funcProc: 0, funcMat: 0, workers: 0, hrs: 0
         }));
         allData[active] = (allData[active] || []).concat(rows);
-        save(active).then(() => {
-            load(active).then(() => {
-                render();
-                updChart();
-                showMsg('已添加 ' + d);
-            });
-        });
+        try {
+            await save(active);
+            await load(active);
+            render();
+            updChart();
+            showMsg('已添加 ' + d);
+        } catch (err) {
+            showMsg('添加失败，请按F12查看错误');
+            // 回滚
+            allData[active] = (allData[active] || []).filter(r => r.date !== d);
+        }
     }
 
     async function clearAll() {
@@ -508,16 +516,17 @@
         active = users[0];
         renderTabs(); render(); initChart(); updChart();
         dot.className = 'sync-dot'; txt.textContent = '已连接';
-        db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
-            if (pending) return;
-            await load(active); render(); updChart();
-        }).subscribe();
+        // 实时订阅（如果 WebSocket 失败，不影响使用）
+        try {
+            db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
+                if (pending) return;
+                await load(active); render(); updChart();
+            }).subscribe();
+        } catch (e) { console.warn('实时同步未启动'); }
     }
 
-    // 延迟绑定按钮，确保 DOM 加载完成
     document.getElementById('btnAdd').addEventListener('click', addDay);
     document.getElementById('btnClearAll').addEventListener('click', clearAll);
-
     start();
 })();
 </script>
