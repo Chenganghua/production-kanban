@@ -63,20 +63,16 @@
             100% { transform: translateX(-50%); }
         }
 
-        .header-link{ display:flex; justify-content:flex-end; margin-bottom:6px; }
-        .header-link a{ display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; background:var(--blue); color:#fff; text-decoration:none; }
-        .header-link a:hover{ opacity:0.85; }
-
-.target-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: 12px 16px;
-    box-shadow: var(--shadow-sm);
-}
+        .target-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            box-shadow: var(--shadow-sm);
+        }
         .target-bar label{ font-size:13px; font-weight:500; }
         .target-bar input{ width:100px; padding:6px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; text-align:center; }
 
@@ -109,18 +105,18 @@
         .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
         .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
         .toggle-panel input[type="checkbox"] {
-    margin: 0;
-    padding: 0;
-    width: 14px;
-    height: 14px;
-    vertical-align: middle;
-}
-.toggle-panel label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
-    margin-right: 6px;
-}
+            margin: 0;
+            padding: 0;
+            width: 14px;
+            height: 14px;
+            vertical-align: middle;
+        }
+        .toggle-panel label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            margin-right: 6px;
+        }
     </style>
 </head>
 <body>
@@ -156,9 +152,8 @@
         </div>
     </div>
 
-<div class="target-bar">
-   <div class="target-bar" id="targetBar">
-    <span id="targetGroup3">
+<div class="target-bar" id="targetBar">
+    <span id="targetGroup3" style="display:inline;">
         <label>后焊目标：</label><input type="number" id="targetProd_后焊" value="300" min="1" style="width:80px;">
         <label>组装目标：</label><input type="number" id="targetProd_组装" value="350" min="1" style="width:80px;">
         <label>包装目标：</label><input type="number" id="targetProd_包装" value="350" min="1" style="width:80px;">
@@ -182,18 +177,17 @@
 </div>
 
     <div class="charts-row">
-        <div class="chart-box">
+        <div class="chart-box" id="mainChartBox">
             <div class="date-filter">
                 <label>日期范围：</label>
                 <input type="date" id="filterStart"> <span>至</span> <input type="date" id="filterEnd">
                 <button class="btn" onclick="applyDateFilter()">筛选</button>
                 <button class="btn" onclick="resetDateFilter()">全部</button>
             </div>
-            <div class="chart-box" id="mainChartBox">
             <div class="toggle-panel" id="togglePanel"></div>
             <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
-        <div class="chart-box" style="max-width:400px;">
+        <div class="chart-box" style="max-width:400px;" id="defectChartBox">
             <h3>不良品工序占比</h3>
             <div class="chart-wrapper"><canvas id="defectChart"></canvas></div>
         </div>
@@ -235,7 +229,7 @@
     let pendingSave = false;
     let mainChart, defectChart;
     let filterStart = '', filterEnd = '';
-
+    let chartWidthPercent = parseInt(localStorage.getItem('chartWidthPercent')) || 65;
     const dot = document.getElementById('syncDot');
     const txt = document.getElementById('syncText');
 
@@ -391,33 +385,50 @@
         }
         buildTogglePanel();
     }
+
     function buildTogglePanel() {
-    const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
-    const panel = document.getElementById('togglePanel');
-    panel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
-    labels.forEach((l, i) => {
-        panel.innerHTML += `<label style="display:inline-flex; align-items:center; gap:0; margin-right:6px;"><input type="checkbox" checked data-idx="${i}" onchange="toggleLine(this)">${l}</label>`;
-    });
-    // 宽度滑块
-    const chartBox = document.getElementById('mainChartBox');
-    panel.innerHTML += `<span style="margin-left:16px; font-weight:600;">图表宽度：</span>
-        <input type="range" id="chartWidthSlider" min="30" max="100" value="${chartWidthPercent}" oninput="setChartWidth(this.value)" style="width:100px; vertical-align:middle;">
-        <span id="chartWidthValue" style="font-size:12px;">${chartWidthPercent}%</span>`;
-    chartBox.style.flex = `0 0 ${chartWidthPercent}%`;
-    chartBox.style.maxWidth = `${chartWidthPercent}%`;
-}
+        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+        const panel = document.getElementById('togglePanel');
+        panel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
+        labels.forEach((l, i) => {
+            panel.innerHTML += `<label style="display:inline-flex; align-items:center; gap:0; margin-right:6px;"><input type="checkbox" checked data-idx="${i}" onchange="window.toggleLine(this)">${l}</label>`;
+        });
+        const chartBox = document.getElementById('mainChartBox');
+        panel.innerHTML += `<span style="margin-left:16px; font-weight:600;">图表宽度：</span>
+            <input type="range" id="chartWidthSlider" min="30" max="100" value="${chartWidthPercent}" oninput="window.setChartWidth(this.value)" style="width:100px; vertical-align:middle;">
+            <span id="chartWidthValue" style="font-size:12px;">${chartWidthPercent}%</span>`;
+        chartBox.style.flex = `0 0 ${chartWidthPercent}%`;
+        chartBox.style.maxWidth = `${chartWidthPercent}%`;
+    }
+
+    window.toggleLine = function(cb) {
+        if (!mainChart) return;
+        mainChart.setDatasetVisibility(parseInt(cb.dataset.idx), cb.checked);
+        mainChart.update();
+    };
+
+    window.setChartWidth = function(val) {
+        chartWidthPercent = parseInt(val);
+        document.getElementById('chartWidthValue').textContent = chartWidthPercent + '%';
+        const chartBox = document.getElementById('mainChartBox');
+        chartBox.style.flex = `0 0 ${chartWidthPercent}%`;
+        chartBox.style.maxWidth = `${chartWidthPercent}%`;
+        if (mainChart) mainChart.resize();
+        localStorage.setItem('chartWidthPercent', chartWidthPercent);
+    };
+
     function renderTable() {
         const filtered = getFilteredRecords();
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="18">暂无数据</td></tr>'; return; }
-const targetProdMap = {
-    '后焊': parseFloat(document.getElementById('targetProd_后焊')?.value) || 300,
-    '组装': parseFloat(document.getElementById('targetProd_组装')?.value) || 350,
-    '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350,
-    '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500
-};
-const targetDefect = parseFloat(document.getElementById('targetDefect').value) || 5;
+        const targetProdMap = {
+            '后焊': parseFloat(document.getElementById('targetProd_后焊')?.value) || 300,
+            '组装': parseFloat(document.getElementById('targetProd_组装')?.value) || 350,
+            '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350,
+            '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500
+        };
+        const targetDefect = parseFloat(document.getElementById('targetDefect').value) || 5;
         const grp = {};
         filtered.forEach(r => { if (!grp[r.date]) grp[r.date] = []; grp[r.date].push(r); });
         const dates = Object.keys(grp).sort();
@@ -434,9 +445,9 @@ const targetDefect = parseFloat(document.getElementById('targetDefect').value) |
                 tp += r.productionQty; tcp += r.cosmeticProcess; tcm += r.cosmeticMaterial;
                 tfp += r.functionalProcess; tfm += r.functionalMaterial;
                 tw += w; th += hr; twh += wh; if (up > 0) tpr += pr;
-const targetProd = targetProdMap[r.process] || 300;
-const prodOk = r.productionQty >= targetProd;
-const defectOk = rate === null || rate <= targetDefect;
+                const targetProd = targetProdMap[r.process] || 300;
+                const prodOk = r.productionQty >= targetProd;
+                const defectOk = rate === null || rate <= targetDefect;
                 const rowClass = (!prodOk || !defectOk) ? ' class="over-target"' : '';
                 html += `<tr${rowClass} id="r-${d}-${r.process}">
                     <td>${d}</td><td class="process-name">${r.process}</td>
@@ -513,29 +524,27 @@ const defectOk = rate === null || rate <= targetDefect;
         refreshAll();
     };
     window.addDay = async function() {
-    const today = new Date().toISOString().split('T')[0];
-    const d = prompt('日期 (YYYY-MM-DD)：', today);
-    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    if ((allData[active] || []).some(r => r.date === d)) { toast('已存在'); return; }
-    
-    let processes;
-    if (currentTemplate === 'single') {
-        processes = ['一条龙'];
-    } else {
-        processes = ['后焊','组装','包装'];
-    }
-    
-    const newRows = processes.map(p => ({
-        date: d, process: p, productionQty: 0,
-        cosmeticProcess: 0, cosmeticMaterial: 0,
-        functionalProcess: 0, functionalMaterial: 0,
-        workers: 0, dailyHours: 0, remark: ''
-    }));
-    allData[active] = (allData[active] || []).concat(newRows);
-    await doSave(active);
-    refreshAll();
-    toast('已添加 ' + d + '（' + (currentTemplate === 'single' ? '一条龙' : '3工序') + '）');
-};
+        const today = new Date().toISOString().split('T')[0];
+        const d = prompt('日期 (YYYY-MM-DD)：', today);
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        if ((allData[active] || []).some(r => r.date === d)) { toast('已存在'); return; }
+        let processes;
+        if (currentTemplate === 'single') {
+            processes = ['一条龙'];
+        } else {
+            processes = ['后焊','组装','包装'];
+        }
+        const newRows = processes.map(p => ({
+            date: d, process: p, productionQty: 0,
+            cosmeticProcess: 0, cosmeticMaterial: 0,
+            functionalProcess: 0, functionalMaterial: 0,
+            workers: 0, dailyHours: 0, remark: ''
+        }));
+        allData[active] = (allData[active] || []).concat(newRows);
+        await doSave(active);
+        refreshAll();
+        toast('已添加 ' + d + '（' + (currentTemplate === 'single' ? '一条龙' : '3工序') + '）');
+    };
     window.applyDateFilter = function() { filterStart = document.getElementById('filterStart').value; filterEnd = document.getElementById('filterEnd').value; refreshAll(); };
     window.resetDateFilter = function() { filterStart = ''; filterEnd = ''; document.getElementById('filterStart').value = ''; document.getElementById('filterEnd').value = ''; refreshAll(); };
     window.exportPDF = function() {
@@ -543,34 +552,34 @@ const defectOk = rate === null || rate <= targetDefect;
         html2pdf().set({ margin: 5, filename: '生产数据报表.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a3', orientation: 'landscape' } }).from(element).save();
     };
     window.exportExcel = function() {
-    const rows = allData[active] || [];
-    if (rows.length === 0) {
-        toast('当前没有数据可导出');
-        return;
-    }
-    const data = rows.map(r => ({
-        '日期': r.date,
-        '工序': r.process,
-        '生产数量': r.productionQty,
-        '外观制程不良': r.cosmeticProcess,
-        '外观来料不良': r.cosmeticMaterial,
-        '功能制程不良': r.functionalProcess,
-        '功能来料不良': r.functionalMaterial,
-        '不良品总数': totalDefect(r),
-        '不良品率': defectRate(r.productionQty, totalDefect(r)) != null ? (defectRate(r.productionQty, totalDefect(r))).toFixed(2) + '%' : '-',
-        '人数': r.workers,
-        '当日工时': r.dailyHours,
-        '总工时': (r.workers * r.dailyHours).toFixed(1),
-        '平均小时产能': r.dailyHours > 0 ? (r.productionQty / r.dailyHours).toFixed(2) : '-',
-        'UPPH': upph(r.productionQty, r.workers, r.dailyHours).toFixed(2),
-        '工序单价': upph(r.productionQty, r.workers, r.dailyHours) > 0 ? '¥' + (20 / upph(r.productionQty, r.workers, r.dailyHours)).toFixed(2) : '-',
-        '备注': r.remark || ''
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "生产数据");
-    XLSX.writeFile(wb, `生产数据_${active}_${new Date().toISOString().slice(0,10)}.xlsx`);
-};
+        const rows = allData[active] || [];
+        if (rows.length === 0) {
+            toast('当前没有数据可导出');
+            return;
+        }
+        const data = rows.map(r => ({
+            '日期': r.date,
+            '工序': r.process,
+            '生产数量': r.productionQty,
+            '外观制程不良': r.cosmeticProcess,
+            '外观来料不良': r.cosmeticMaterial,
+            '功能制程不良': r.functionalProcess,
+            '功能来料不良': r.functionalMaterial,
+            '不良品总数': totalDefect(r),
+            '不良品率': defectRate(r.productionQty, totalDefect(r)) != null ? (defectRate(r.productionQty, totalDefect(r))).toFixed(2) + '%' : '-',
+            '人数': r.workers,
+            '当日工时': r.dailyHours,
+            '总工时': (r.workers * r.dailyHours).toFixed(1),
+            '平均小时产能': r.dailyHours > 0 ? (r.productionQty / r.dailyHours).toFixed(2) : '-',
+            'UPPH': upph(r.productionQty, r.workers, r.dailyHours).toFixed(2),
+            '工序单价': upph(r.productionQty, r.workers, r.dailyHours) > 0 ? '¥' + (20 / upph(r.productionQty, r.workers, r.dailyHours)).toFixed(2) : '-',
+            '备注': r.remark || ''
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "生产数据");
+        XLSX.writeFile(wb, `生产数据_${active}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    };
 
     document.getElementById('btnClearAll').addEventListener('click', async function() {
         if (!confirm('确定删除当前数据？')) return;
@@ -580,29 +589,30 @@ const defectOk = rate === null || rate <= targetDefect;
         refreshAll();
         toast('已清除全部数据');
     });
+
     window.setTemplate = function(template) {
-    currentTemplate = template;
-    const btn3 = document.getElementById('btnTemplate3');
-    const btnSingle = document.getElementById('btnTemplateSingle');
-    const group3 = document.getElementById('targetGroup3');
-    const groupSingle = document.getElementById('targetGroupSingle');
-    
-    if (template === '3process') {
-        btn3.style.background = 'var(--blue)';
-        btn3.style.color = '#fff';
-        btnSingle.style.background = '#ccc';
-        btnSingle.style.color = '#333';
-        group3.style.display = 'inline';
-        groupSingle.style.display = 'none';
-    } else {
-        btnSingle.style.background = 'var(--blue)';
-        btnSingle.style.color = '#fff';
-        btn3.style.background = '#ccc';
-        btn3.style.color = '#333';
-        group3.style.display = 'none';
-        groupSingle.style.display = 'inline';
-    }
-};
+        currentTemplate = template;
+        const btn3 = document.getElementById('btnTemplate3');
+        const btnSingle = document.getElementById('btnTemplateSingle');
+        const group3 = document.getElementById('targetGroup3');
+        const groupSingle = document.getElementById('targetGroupSingle');
+        if (template === '3process') {
+            btn3.style.background = 'var(--blue)';
+            btn3.style.color = '#fff';
+            btnSingle.style.background = '#ccc';
+            btnSingle.style.color = '#333';
+            group3.style.display = 'inline';
+            groupSingle.style.display = 'none';
+        } else {
+            btnSingle.style.background = 'var(--blue)';
+            btnSingle.style.color = '#fff';
+            btn3.style.background = '#ccc';
+            btn3.style.color = '#333';
+            group3.style.display = 'none';
+            groupSingle.style.display = 'inline';
+        }
+    };
+
     window.switchBoard = async function(board) {
         if (board === active) return;
         active = board;
@@ -683,11 +693,10 @@ const defectOk = rate === null || rate <= targetDefect;
                 await loadBoardFromCloud(active);
                 refreshAll();
             }).subscribe();
-['targetProd_后焊', 'targetProd_组装', 'targetProd_包装', 'targetProd_一条龙'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', refreshAll);
-});
-document.getElementById('targetDefect').addEventListener('input', refreshAll);
+        ['targetProd_后焊', 'targetProd_组装', 'targetProd_包装', 'targetProd_一条龙'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', refreshAll);
+        });
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
     }
     init();
