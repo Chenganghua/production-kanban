@@ -73,7 +73,7 @@
             <h2 class="board-title" contenteditable="true">生产数据看板</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF13</div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF15</div>
             </div>
         </div>
     </div>
@@ -128,6 +128,12 @@
     const dot = document.getElementById('syncDot');
     const txt = document.getElementById('syncText');
     const togglePanel = document.getElementById('togglePanel');
+
+    document.getElementById('taktTimeLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = prompt('请输入工序工位节拍数据的网址：', 'https://');
+        if (url && url.trim()) window.open(url.trim(), '_blank');
+    });
 
     function showMsg(msg) {
         toast.textContent = msg; toast.classList.add('show');
@@ -498,11 +504,4 @@
         active = u;
         if (!allData[active]) await load(active);
         renderTabs(); render(); updChart();
-        dot.className = 'sync-dot'; txt.textContent = '已连接';
-    }
-
-    async function start() {
-        for (const u of users) await load(u);
-        active = users[0];
-        renderTabs(); render(); initChart(); updChart();
-        dot.className = 'sync-dot
+        dot
