@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板 · 联网同步</title>
+    <title>技改生产数据看板</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -81,20 +81,19 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">生产数据看板</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator">
                     <span class="sync-dot" id="syncDot"></span>
                     <span id="syncText">连接中...</span>
                 </div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7</div>
+                <div style="font-size:11px; opacity:0.8;">制作：陈港华</div>
             </div>
         </div>
     </div>
 
-    <!-- 超链接按钮（带动态人员参数） -->
     <div class="header-link">
-        <a href="line_balance.html?user=陈港华" target="_blank" id="taktTimeLink">工序工位节拍数据</a>
+        <a href="line_balance.html?user=陈港华" target="_blank" id="taktTimeLink">点此处看节拍数据</a>
     </div>
 
     <div class="target-bar">
@@ -448,7 +447,7 @@
     };
 
     document.getElementById('btnClearAll').addEventListener('click', async function() {
-        if (!confirm('⚠️ 确定删除当前页面的所有数据？')) return;
+        if (!confirm('确定删除当前所有数据？')) return;
         allData[active] = [];
         await db.from('production_records').delete().eq('board', active);
         saveToCloud(active);
@@ -460,7 +459,6 @@
         if (board === active) return;
         active = board;
         if (!allData[active]) await loadBoardFromCloud(active);
-        // 更新超链接携带当前人员参数
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
         refreshAll();
         renderTabs();
