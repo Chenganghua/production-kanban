@@ -79,43 +79,35 @@
     </div>
 
     <div class="context-menu" id="contextMenu">
-        <div onclick="addMainProcess()">添加工序</div>
+        <div onclick="addMainProcess()">添加大工序</div>
         <div onclick="addSubTask()">添加子工序</div>
         <div onclick="deleteItem()">删除</div>
     </div>
 </div>
 
 <script>
-  
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: {
-      getItem: (key) => null,
-      setItem: (key, value) => {},
-      removeItem: (key) => {}
-    }
-  }
-});
+    // Supabase配置 - 已内置你的真实密钥
+    const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
-    const BOARD_NAME = '线平衡';  // 固定看板名，如需多页面可扩展
+    const BOARD_NAME = '线平衡';
     let lineData = [];
     let contextTarget = null;
-    let pendingSave = false;       // 防止保存期间实时同步覆盖
+    let pendingSave = false;
 
-    
     const productNameInput = document.getElementById('productName');
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncText');
 
-
     function setSync(status) {
         syncDot.className = 'sync-dot';
         if (status === 'syncing') { syncDot.classList.add('syncing'); syncText.textContent = '保存中...'; }
-        else if (status === 'connected') { syncText.textContent = '数据已连接'; }
-        else { syncDot.style.background = '#FF3B30'; syncText.textContent = '离线了'; }
+        else if (status === 'connected') { syncText.textContent = '已连接'; }
+        else { syncDot.style.background = '#FF3B30'; syncText.textContent = '离线'; }
     }
 
- 
     async function loadFromCloud() {
         setSync('syncing');
         try {
@@ -129,7 +121,6 @@
                 productNameInput.value = data.product_name || '';
                 lineData = data.data || [];
             } else {
-               
                 productNameInput.value = '';
                 lineData = [];
                 initDefaultData();
@@ -138,13 +129,11 @@
         } catch (e) {
             console.error('加载失败:', e);
             setSync('error');
-            
             if (lineData.length === 0) initDefaultData();
         }
         renderAll();
     }
 
- 
     async function saveToCloud() {
         if (pendingSave) return;
         pendingSave = true;
@@ -190,7 +179,7 @@
         renderLeftPanel();
         updateGantt();
         updateBalance();
-        saveToCloud(); // 每次渲染后自动保存
+        saveToCloud();
     }
 
     function addWorker(promptName = true) {
@@ -210,7 +199,6 @@
         renderAll();
     }
 
- 
     function renderLeftPanel() {
         const container = document.getElementById('leftPanel');
         container.innerHTML = '';
@@ -253,7 +241,6 @@
             container.appendChild(group);
         });
 
-        // 右键菜单事件
         document.querySelectorAll('.worker-group').forEach(group => {
             group.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
@@ -336,7 +323,6 @@
         renderAll();
     }
 
- 
     function updateGantt() {
         const canvas = document.getElementById('ganttCanvas');
         const ctx = canvas.getContext('2d');
@@ -391,7 +377,6 @@
         document.getElementById('balanceLabel').textContent = `线平衡率：${balance}%`;
     }
 
-    
     function importExcel() {
         const input = document.createElement('input');
         input.type = 'file';
@@ -443,13 +428,12 @@
         }
     }
 
-
     function subscribeRealtime() {
         db.channel('line_balance_changes')
             .on('postgres_changes',
                 { event: '*', schema: 'public', table: 'line_balance', filter: `board=eq.${BOARD_NAME}` },
                 async (payload) => {
-                    if (pendingSave) return; // 如果是本窗口保存的，忽略
+                    if (pendingSave) return;
                     await loadFromCloud();
                     renderAll();
                 }
@@ -457,7 +441,6 @@
             .subscribe();
     }
 
-   
     window.addEventListener('resize', updateGantt);
     window.addEventListener('load', async () => {
         await loadFromCloud();
