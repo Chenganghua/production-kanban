@@ -147,6 +147,11 @@
               color:#fff; text-decoration:none;">
         ➤点这看线平衡率
     </a>
+    <span style="margin-left:12px; display:flex; align-items:center; gap:6px;">
+    <span style="font-size:12px; color:#666;">添加工序模板：</span>
+    <button id="btnTemplate3" class="btn" style="background:var(--blue); color:#fff; padding:6px 14px; font-size:13px;" onclick="setTemplate('3process')">3工序</button>
+    <button id="btnTemplateSingle" class="btn" style="background:#ccc; color:#333; padding:6px 14px; font-size:13px;" onclick="setTemplate('single')">一条龙</button>
+</span>
 </div>
 
     <div class="charts-row">
@@ -196,6 +201,7 @@
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
+    let currentTemplate = '3process';
     let active = boards[0];
     let allData = {};
     let pendingSave = false;
@@ -377,6 +383,7 @@
         tbody.innerHTML = '';
         if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="18">暂无数据</td></tr>'; return; }
 const targetProdMap = {
+    '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500,
     '后焊': parseFloat(document.getElementById('targetProd_后焊')?.value) || 300,
     '组装': parseFloat(document.getElementById('targetProd_组装')?.value) || 350,
     '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350
@@ -477,21 +484,29 @@ const defectOk = rate === null || rate <= targetDefect;
         refreshAll();
     };
     window.addDay = async function() {
-        const today = new Date().toISOString().split('T')[0];
-        const d = prompt('日期 (YYYY-MM-DD)：', today);
-        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-        if ((allData[active] || []).some(r => r.date === d)) { toast('已存在'); return; }
-        const newRows = ['后焊','组装','包装'].map(p => ({
-            date: d, process: p, productionQty: 0,
-            cosmeticProcess: 0, cosmeticMaterial: 0,
-            functionalProcess: 0, functionalMaterial: 0,
-            workers: 0, dailyHours: 0, remark: ''
-        }));
-        allData[active] = (allData[active] || []).concat(newRows);
-        await doSave(active);
-        refreshAll();
-        toast('已添加 ' + d);
-    };
+    const today = new Date().toISOString().split('T')[0];
+    const d = prompt('日期 (YYYY-MM-DD)：', today);
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    if ((allData[active] || []).some(r => r.date === d)) { toast('已存在'); return; }
+    
+    let processes;
+    if (currentTemplate === 'single') {
+        processes = ['一条龙'];
+    } else {
+        processes = ['后焊','组装','包装'];
+    }
+    
+    const newRows = processes.map(p => ({
+        date: d, process: p, productionQty: 0,
+        cosmeticProcess: 0, cosmeticMaterial: 0,
+        functionalProcess: 0, functionalMaterial: 0,
+        workers: 0, dailyHours: 0, remark: ''
+    }));
+    allData[active] = (allData[active] || []).concat(newRows);
+    await doSave(active);
+    refreshAll();
+    toast('已添加 ' + d + '（' + (currentTemplate === 'single' ? '一条龙' : '3工序') + '）');
+};
     window.applyDateFilter = function() { filterStart = document.getElementById('filterStart').value; filterEnd = document.getElementById('filterEnd').value; refreshAll(); };
     window.resetDateFilter = function() { filterStart = ''; filterEnd = ''; document.getElementById('filterStart').value = ''; document.getElementById('filterEnd').value = ''; refreshAll(); };
     window.exportPDF = function() {
@@ -536,7 +551,22 @@ const defectOk = rate === null || rate <= targetDefect;
         refreshAll();
         toast('已清除全部数据');
     });
-
+    window.setTemplate = function(template) {
+    currentTemplate = template; 
+    const btn3 = document.getElementById('btnTemplate3');
+    const btnSingle = document.getElementById('btnTemplateSingle');
+    if (template === '3process') {
+        btn3.style.background = 'var(--blue)';
+        btn3.style.color = '#fff';
+        btnSingle.style.background = '#ccc';
+        btnSingle.style.color = '#333';
+    } else {
+        btnSingle.style.background = 'var(--blue)';
+        btnSingle.style.color = '#fff';
+        btn3.style.background = '#ccc';
+        btn3.style.color = '#333';
+    }
+};
     window.switchBoard = async function(board) {
         if (board === active) return;
         active = board;
