@@ -200,8 +200,8 @@
 
     function setSyncStatus(status) {
         dot.className = 'sync-dot';
-        if (status === 'syncing') { dot.classList.add('syncing'); txt.textContent = '同步中...'; }
-        else if (status === 'connected') { txt.textContent = '已连接'; }
+        if (status === 'syncing') { dot.classList.add('syncing'); txt.textContent = '同步SQL库中...'; }
+        else if (status === 'connected') { txt.textContent = '在线'; }
         else { dot.style.background = '#FF3B30'; txt.textContent = '离线了'; }
     }
 
@@ -507,7 +507,7 @@
 
     function renderTabs() {
         const tabsBar = document.getElementById('tabsBar');
-        tabsBar.innerHTML = boards.map(b => `<button class="tab ${b === active ? 'active' : ''}" onclick="switchBoard('${b}')">${b}<span class="edit-tab" onclick="event.stopPropagation(); renameBoard('${b}')">✎</span>${boards.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); deleteBoard('${b}')">×</span>` : ''}</button>`).join('') + '<button class="add-tab-btn" onclick="addBoard()">+</button>';
+        tabsBar.innerHTML = boards.map(b => `<button class="tab ${b === active ? 'active' : ''}" onclick="switchBoard('${b}')">${b}<span class="edit-tab" onclick="event.stopPropagation(); renameBoard('${b}')"></span>${boards.length > 1 ? `<span class="close-tab" onclick="event.stopPropagation(); deleteBoard('${b}')">×</span>` : ''}</button>`).join('') + '<button class="add-tab-btn" onclick="addBoard()">+</button>';
     }
     window.renameBoard = async function(old) {
         const n = prompt('新名称：', old);
