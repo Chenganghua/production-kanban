@@ -84,30 +84,62 @@
         <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
     </div>
 
-    <div class="data-card">
-        <div class="section-header">
-            <span style="font-weight:700;">每日生产记录</span>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-danger" id="btnClearAll">🗑 删除全部</button>
-                <button class="btn" id="btnAdd">＋ 添加一天</button>
-            </div>
-        </div>
-        <div class="table-scroll">
-            <table id="dataTable">
-                <thead><tr>
-                    <th>日期</th><th>工序</th><th>生产数量</th>
-                    <th>外观制程不良</th><th>外观来料不良</th>
-                    <th>功能制程不良</th><th>功能来料不良</th>
-                    <th>不良品总数</th><th>不良品率</th>
-                    <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
-                </tr></thead>
-                <tbody id="tableBody"></tbody>
-            </table>
+<div class="data-card">
+    <div class="section-header">
+        <span style="font-weight:700;">每日生产记录</span>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-danger" id="btnClearAll">删除全部</button>
+            <button class="btn" id="btnAdd">＋ 添加一天</button>
         </div>
     </div>
+    <div class="table-scroll">
+        <table id="dataTable">
+            <thead><tr>
+                <th>日期</th><th>工序</th><th>生产数量</th>
+                <th>外观制程不良</th><th>外观来料不良</th>
+                <th>功能制程不良</th><th>功能来料不良</th>
+                <th>不良品总数</th><th>不良品率</th>
+                <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
+            </tr></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
 </div>
-<div class="toast" id="toast"></div>
 
+<script>
+    const btnAdd = document.getElementById('btnAdd');
+    const btnClearAll = document.getElementById('btnClearAll');
+    const tableBody = document.getElementById('tableBody');
+
+    // 初始化日期
+    let currentDate = new Date();
+
+    btnAdd.addEventListener('click', function() {
+        // 新建一行
+        const row = document.createElement('tr');
+
+        // 这里简单示例，每个单元格都填默认值
+        row.innerHTML = `
+            <td>${currentDate.toISOString().split('T')[0]}</td>
+            <td>工序A</td>
+            <td>0</td>
+            <td>0</td><td>0</td>
+            <td>0</td><td>0</td>
+            <td>0</td><td>0%</td>
+            <td>0</td><td>8</td><td>0</td><td>0</td><td>0</td><td>0</td>
+            <td><button class="btn btn-small btn-danger" onclick="this.closest('tr').remove()">删除</button></td>
+        `;
+
+        tableBody.appendChild(row);
+
+        // 日期加一天
+        currentDate.setDate(currentDate.getDate() + 1);
+    });
+
+    btnClearAll.addEventListener('click', function() {
+        tableBody.innerHTML = '';
+        currentDate = new Date(); // 重置日期
+    });
 <script>
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
