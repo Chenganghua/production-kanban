@@ -18,7 +18,7 @@
         }
         *{ margin:0; padding:0; box-sizing:border-box; }
         body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
-        .app{ width:100%; max-width:1500px; display:flex; flex-direction:column; gap:16px; }
+        .app{ width:100%; max-width:1700px; display:flex; flex-direction:column; gap:16px; }
 
         .sticky-header{ position:sticky; top:0; z-index:100; background:var(--bg); padding-bottom:8px; display:flex; flex-direction:column; gap:16px; }
 
@@ -489,13 +489,11 @@
         html2pdf().set({ margin: 5, filename: '生产数据报表.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a3', orientation: 'landscape' } }).from(element).save();
     };
     window.exportExcel = function() {
-    // 从当前活跃看板提取数据
     const rows = allData[active] || [];
     if (rows.length === 0) {
         toast('当前没有数据可导出');
         return;
     }
-    // 构造导出数据（与表格行一致）
     const data = rows.map(r => ({
         '日期': r.date,
         '工序': r.process,
@@ -514,7 +512,6 @@
         '工序单价': upph(r.productionQty, r.workers, r.dailyHours) > 0 ? '¥' + (20 / upph(r.productionQty, r.workers, r.dailyHours)).toFixed(2) : '-',
         '备注': r.remark || ''
     }));
-    // 创建工作簿并导出
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "生产数据");
