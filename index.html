@@ -382,7 +382,7 @@
         const panel = document.getElementById('togglePanel');
         panel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
         labels.forEach((l, i) => {
-            panel.innerHTML += `<label style="margin-right:4px;"><input type="checkbox" checked data-idx="${i}" onchange="toggleLine(this)"> ${l}</label>`;
+            panel.innerHTML += `<label style="margin-right:0px;"><input type="checkbox" checked data-idx="${i}" onchange="toggleLine(this)"> ${l}</label>`;
         });
     }
     window.toggleLine = function(cb) {
