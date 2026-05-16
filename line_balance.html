@@ -27,7 +27,6 @@
         .left-panel { flex:2; min-width:350px; background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px; max-height:600px; overflow-y:auto; }
         .right-panel { flex:3; min-width:400px; background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); }
         .gantt-container { position:relative; width:100%; height:500px; }
-        canvas { width:100%; height:100%; }
         .worker-group { border:1px solid #e0e0e0; border-radius:6px; padding:8px; margin-bottom:8px; background:#fafafa; }
         .worker-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
         .worker-header input { border:1px solid #ccc; border-radius:4px; padding:4px 8px; font-size:14px; width:150px; }
@@ -97,7 +96,6 @@
     let contextTarget = null;
     let pendingSave = false;
 
-    // DOM 元素（延迟绑定）
     let productNameInput, syncDot, syncText, balanceLabel, leftPanel, canvas, contextMenu;
     let btnAddWorker, btnImportExcel, btnExportExcel, btnClearData;
 
@@ -299,12 +297,19 @@
     function updateGantt() {
         const ctx = canvas.getContext('2d');
         const container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = container.clientWidth * dpr;
+        canvas.height = container.clientHeight * dpr;
+        canvas.style.width = container.clientWidth + 'px';
+        canvas.style.height = container.clientHeight + 'px';
+
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
+
         if (lineData.length === 0) return;
 
-        const barHeight = Math.min(40, (canvas.height - 60) / lineData.length);
+        const barHeight = Math.min(40, (container.clientHeight - 60) / lineData.length);
         const startY = 30;
         const colors = ['#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
         let maxTime = 0;
@@ -320,20 +325,20 @@
             const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
             if (total === maxTime) {
                 ctx.fillStyle = 'rgba(255,59,48,0.3)';
-                ctx.fillRect(0, y - 2, canvas.width - 40, barHeight + 4);
+                ctx.fillRect(0, y - 2, container.clientWidth - 40, barHeight + 4);
             }
             w.子工序.forEach((s, j) => {
-                const width = (s.time / maxTime) * (canvas.width - 150);
+                const width = (s.time / maxTime) * (container.clientWidth - 150);
                 ctx.fillStyle = colors[j % colors.length];
                 ctx.fillRect(50 + left, y, width, barHeight);
                 ctx.fillStyle = '#ffffff';
-                ctx.font = '12px sans-serif';
-                ctx.fillText(s.name, 55 + left, y + barHeight/2 + 4);
+                ctx.font = `bold ${Math.max(11, barHeight * 0.35)}px sans-serif`;
+                ctx.fillText(s.name, 55 + left, y + barHeight / 2 + 5);
                 left += width;
             });
             ctx.fillStyle = '#000';
-            ctx.font = '14px sans-serif';
-            ctx.fillText(w.作业员, 5, y + barHeight/2 + 5);
+            ctx.font = `bold ${Math.max(12, barHeight * 0.4)}px sans-serif`;
+            ctx.fillText(w.作业员, 5, y + barHeight / 2 + 5);
         });
     }
 
