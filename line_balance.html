@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生产线工位线平衡</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f5f5f5; --card-bg: #ffffff; --border: #dcdcdc;
+            --blue: #007aff; --red: #ff3b30; --text: #000000;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06); --radius: 8px;
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:var(--font); background:var(--bg); color:var(--text); padding:20px; display:flex; justify-content:center; }
+        .app { width:100%; max-width:1400px; display:flex; flex-direction:column; gap:16px; }
+        .top-bar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; background:var(--card-bg); border-radius:var(--radius); padding:12px 20px; box-shadow:var(--shadow); }
+        .top-bar .product input { border:1px solid var(--border); border-radius:var(--radius); padding:6px 12px; font-size:16px; width:250px; }
+        .top-bar .balance { font-size:16px; color:#ff6600; font-weight:600; }
+        .sync-indicator { display:flex; align-items:center; gap:6px; font-size:12px; }
+        .sync-dot { width:8px; height:8px; border-radius:50%; background:#34C759; }
+        .sync-dot.syncing { background:#FF9500; animation:pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .main-content { display:flex; gap:16px; flex-wrap:wrap; }
+        .left-panel { flex:2; min-width:350px; background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px; max-height:600px; overflow-y:auto; }
+        .right-panel { flex:3; min-width:400px; background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); }
+        .gantt-container { position:relative; width:100%; height:500px; }
+        canvas { width:100%; height:100%; }
+        .worker-group { border:1px solid #e0e0e0; border-radius:6px; padding:8px; margin-bottom:8px; background:#fafafa; }
+        .worker-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+        .worker-header input { border:1px solid #ccc; border-radius:4px; padding:4px 8px; font-size:14px; width:150px; }
+        .subtask-row { display:flex; align-items:center; gap:6px; margin-left:24px; margin-bottom:3px; }
+        .subtask-row input { border:1px solid #ccc; border-radius:4px; padding:3px 6px; font-size:13px; width:120px; }
+        .subtask-row input.time { width:70px; }
+        .btn { padding:6px 14px; border:none; border-radius:6px; font-size:14px; cursor:pointer; color:#fff; background:var(--blue); }
+        .btn.red { background:var(--red); }
+        .btn:hover { opacity:0.85; }
+        .btn-delete { background:none; border:none; color:var(--red); cursor:pointer; font-size:16px; }
+        .context-menu { position:absolute; background:white; border:1px solid #ccc; border-radius:4px; box-shadow:2px 2px 8px rgba(0,0,0,0.15); display:none; z-index:10; }
+        .context-menu div { padding:6px 16px; cursor:pointer; }
+        .context-menu div:hover { background:#f0f0f0; }
+        .footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; background:var(--card-bg); border-radius:var(--radius); padding:10px 20px; box-shadow:var(--shadow); }
+        @media (max-width: 800px) { .main-content { flex-direction:column; } }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="top-bar">
+        <div class="product">
+            <label>产品名称：</label>
+            <input type="text" id="productName" placeholder="请输入产品名称">
+        </div>
+        <div class="sync-indicator">
+            <span class="sync-dot" id="syncDot"></span>
+            <span id="syncText">连接中...</span>
+        </div>
+        <div class="balance" id="balanceLabel">线平衡率：0%</div>
+    </div>
+
+    <div class="main-content">
+        <div class="left-panel" id="leftPanel" oncontextmenu="return false;"></div>
+        <div class="right-panel">
+            <div class="gantt-container">
+                <canvas id="ganttCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="addWorker()">增加作业员</button>
+            <button class="btn" onclick="importExcel()">导入Excel</button>
+            <button class="btn" onclick="exportExcel()">导出Excel</button>
+            <button class="btn red" onclick="clearData()">清空数据</button>
+        </div>
+        <div style="font-size:14px; color:#666;">制作人：陈港华</div>
+    </div>
+
+    <div class="context-menu" id="contextMenu">
+        <div onclick="addMainProcess()">添加工序</div>
+        <div onclick="addSubTask()">添加子工序</div>
+        <div onclick="deleteItem()">删除</div>
+    </div>
+</div>
+
+<script>
+  
+    const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
+    const BOARD_NAME = '线平衡';  // 固定看板名，如需多页面可扩展
+    let lineData = [];
+    let contextTarget = null;
+    let pendingSave = false;       // 防止保存期间实时同步覆盖
+
+    
+    const productNameInput = document.getElementById('productName');
+    const syncDot = document.getElementById('syncDot');
+    const syncText = document.getElementById('syncText');
+
+
+    function setSync(status) {
+        syncDot.className = 'sync-dot';
+        if (status === 'syncing') { syncDot.classList.add('syncing'); syncText.textContent = '保存中...'; }
+        else if (status === 'connected') { syncText.textContent = '数据已连接'; }
+        else { syncDot.style.background = '#FF3B30'; syncText.textContent = '离线了'; }
+    }
+
+ 
+    async function loadFromCloud() {
+        setSync('syncing');
+        try {
+            const { data, error } = await db
+                .from('line_balance')
+                .select('*')
+                .eq('board', BOARD_NAME)
+                .maybeSingle();
+            if (error) throw error;
+            if (data) {
+                productNameInput.value = data.product_name || '';
+                lineData = data.data || [];
+            } else {
+               
+                productNameInput.value = '';
+                lineData = [];
+                initDefaultData();
+            }
+            setSync('connected');
+        } catch (e) {
+            console.error('加载失败:', e);
+            setSync('error');
+            
+            if (lineData.length === 0) initDefaultData();
+        }
+        renderAll();
+    }
+
+ 
+    async function saveToCloud() {
+        if (pendingSave) return;
+        pendingSave = true;
+        setSync('syncing');
+        try {
+            const { error } = await db
+                .from('line_balance')
+                .upsert({
+                    board: BOARD_NAME,
+                    product_name: productNameInput.value,
+                    data: lineData,
+                    updated_at: new Date()
+                }, { onConflict: 'board' });
+            if (error) throw error;
+            setSync('connected');
+        } catch (e) {
+            console.error('保存失败:', e);
+            setSync('error');
+        } finally {
+            pendingSave = false;
+        }
+    }
+
+    function initDefaultData() {
+        lineData = [];
+        for (let i = 0; i < 2; i++) {
+            const subList = [];
+            for (let j = 0; j < 3; j++) {
+                subList.push({
+                    name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
+                    time: Math.floor(Math.random() * 8) + 5
+                });
+            }
+            lineData.push({
+                作业员: `作业员${i+1}`,
+                大工序: "新大工序",
+                子工序: subList
+            });
+        }
+    }
+
+    function renderAll() {
+        renderLeftPanel();
+        updateGantt();
+        updateBalance();
+        saveToCloud(); // 每次渲染后自动保存
+    }
+
+    function addWorker(promptName = true) {
+        const name = promptName ? `作业员${lineData.length + 1}` : `作业员${lineData.length + 1}`;
+        const subList = [];
+        for (let i = 0; i < 3; i++) {
+            subList.push({
+                name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
+                time: Math.floor(Math.random() * 8) + 5
+            });
+        }
+        lineData.push({
+            作业员: name,
+            大工序: "新大工序",
+            子工序: subList
+        });
+        renderAll();
+    }
+
+ 
+    function renderLeftPanel() {
+        const container = document.getElementById('leftPanel');
+        container.innerHTML = '';
+        lineData.forEach((worker, wIdx) => {
+            const group = document.createElement('div');
+            group.className = 'worker-group';
+            group.dataset.workerIdx = wIdx;
+
+            const header = document.createElement('div');
+            header.className = 'worker-header';
+            const workerInput = document.createElement('input');
+            workerInput.value = worker.作业员;
+            workerInput.oninput = (e) => { worker.作业员 = e.target.value; updateGantt(); saveToCloud(); };
+            header.appendChild(workerInput);
+
+            const mainLabel = document.createElement('span');
+            mainLabel.textContent = '大工序：';
+            const mainInput = document.createElement('input');
+            mainInput.value = worker.大工序;
+            mainInput.oninput = (e) => { worker.大工序 = e.target.value; saveToCloud(); };
+            header.appendChild(mainLabel);
+            header.appendChild(mainInput);
+            group.appendChild(header);
+
+            worker.子工序.forEach((sub, sIdx) => {
+                const row = createSubtaskRow(worker, sIdx);
+                group.appendChild(row);
+            });
+
+            const addBtn = document.createElement('button');
+            addBtn.textContent = '+ 添加子工序';
+            addBtn.className = 'btn';
+            addBtn.style.marginLeft = '24px';
+            addBtn.onclick = () => {
+                worker.子工序.push({ name: DEFAULT_SUBTASKS[0], time: 5 });
+                renderAll();
+            };
+            group.appendChild(addBtn);
+
+            container.appendChild(group);
+        });
+
+        // 右键菜单事件
+        document.querySelectorAll('.worker-group').forEach(group => {
+            group.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                contextTarget = { type: 'worker', idx: parseInt(group.dataset.workerIdx) };
+                showContextMenu(e.pageX, e.pageY);
+            });
+        });
+        document.querySelectorAll('.subtask-row').forEach(row => {
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const wIdx = parseInt(row.dataset.workerIdx);
+                const sIdx = parseInt(row.dataset.subIdx);
+                contextTarget = { type: 'subtask', wIdx, sIdx };
+                showContextMenu(e.pageX, e.pageY);
+            });
+        });
+    }
+
+    function createSubtaskRow(worker, sIdx) {
+        const row = document.createElement('div');
+        row.className = 'subtask-row';
+        row.dataset.workerIdx = lineData.indexOf(worker);
+        row.dataset.subIdx = sIdx;
+        const nameInput = document.createElement('input');
+        nameInput.value = worker.子工序[sIdx].name;
+        nameInput.oninput = (e) => { worker.子工序[sIdx].name = e.target.value; updateGantt(); saveToCloud(); };
+        const timeInput = document.createElement('input');
+        timeInput.type = 'number';
+        timeInput.className = 'time';
+        timeInput.value = worker.子工序[sIdx].time;
+        timeInput.oninput = (e) => { worker.子工序[sIdx].time = parseFloat(e.target.value)||0; updateGantt(); updateBalance(); saveToCloud(); };
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-delete';
+        delBtn.textContent = '✕';
+        delBtn.onclick = () => {
+            worker.子工序.splice(sIdx, 1);
+            renderAll();
+        };
+        row.appendChild(nameInput);
+        row.appendChild(timeInput);
+        row.appendChild(delBtn);
+        return row;
+    }
+
+    function showContextMenu(x, y) {
+        const menu = document.getElementById('contextMenu');
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.display = 'block';
+        const addMain = menu.children[0];
+        const addSub = menu.children[1];
+        if (contextTarget.type === 'worker') {
+            addMain.style.display = 'block';
+            addSub.style.display = 'none';
+        } else {
+            addMain.style.display = 'none';
+            addSub.style.display = 'block';
+        }
+    }
+    document.addEventListener('click', () => { document.getElementById('contextMenu').style.display = 'none'; });
+
+    function addMainProcess() {
+        if (!contextTarget || contextTarget.type !== 'worker') return;
+        lineData[contextTarget.idx].大工序 = '新大工序';
+        renderAll();
+    }
+    function addSubTask() {
+        if (!contextTarget || contextTarget.type !== 'subtask') return;
+        const worker = lineData[contextTarget.wIdx];
+        worker.子工序.push({ name: DEFAULT_SUBTASKS[0], time: 5 });
+        renderAll();
+    }
+    function deleteItem() {
+        if (!contextTarget) return;
+        if (contextTarget.type === 'worker') {
+            lineData.splice(contextTarget.idx, 1);
+        } else if (contextTarget.type === 'subtask') {
+            lineData[contextTarget.wIdx].子工序.splice(contextTarget.sIdx, 1);
+        }
+        renderAll();
+    }
+
+ 
+    function updateGantt() {
+        const canvas = document.getElementById('ganttCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (lineData.length === 0) return;
+
+        const barHeight = Math.min(40, (canvas.height - 60) / lineData.length);
+        const startY = 30;
+        const colors = ['#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
+        let maxTime = 0;
+        lineData.forEach(w => {
+            const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
+            if (total > maxTime) maxTime = total;
+        });
+        if (maxTime === 0) return;
+
+        lineData.forEach((w, i) => {
+            let left = 0;
+            const y = startY + i * (barHeight + 10);
+            const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
+            if (total === maxTime) {
+                ctx.fillStyle = 'rgba(255,59,48,0.3)';
+                ctx.fillRect(0, y - 2, canvas.width - 40, barHeight + 4);
+            }
+            w.子工序.forEach((s, j) => {
+                const width = (s.time / maxTime) * (canvas.width - 150);
+                ctx.fillStyle = colors[j % colors.length];
+                ctx.fillRect(50 + left, y, width, barHeight);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px sans-serif';
+                ctx.fillText(s.name, 55 + left, y + barHeight/2 + 4);
+                left += width;
+            });
+            ctx.fillStyle = '#000';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(w.作业员, 5, y + barHeight/2 + 5);
+        });
+    }
+
+    function updateBalance() {
+        if (lineData.length === 0) {
+            document.getElementById('balanceLabel').textContent = '线平衡率：0%';
+            return;
+        }
+        const times = lineData.map(w => w.子工序.reduce((sum, s) => sum + s.time, 0));
+        const minTime = Math.min(...times);
+        const maxTime = Math.max(...times);
+        const balance = maxTime > 0 ? Math.round((minTime / maxTime) * 100) : 0;
+        document.getElementById('balanceLabel').textContent = `线平衡率：${balance}%`;
+    }
+
+    
+    function importExcel() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const data = new Uint8Array(ev.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet);
+                lineData = [];
+                json.forEach(row => {
+                    const subList = [];
+                    DEFAULT_SUBTASKS.forEach(s => {
+                        if (row[s] !== undefined) subList.push({ name: s, time: parseFloat(row[s]) || 0 });
+                    });
+                    lineData.push({
+                        作业员: row['作业员'] || '',
+                        大工序: row['大工序'] || '',
+                        子工序: subList
+                    });
+                });
+                renderAll();
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    }
+
+    function exportExcel() {
+        const data = lineData.map(w => {
+            const row = { 作业员: w.作业员, 大工序: w.大工序 };
+            w.子工序.forEach(s => { row[s.name] = s.time; });
+            return row;
+        });
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        XLSX.writeFile(wb, "线平衡数据.xlsx");
+    }
+
+    function clearData() {
+        if (confirm('确定清空数据？')) {
+            lineData = [];
+            productNameInput.value = '';
+            renderAll();
+        }
+    }
+
+
+    function subscribeRealtime() {
+        db.channel('line_balance_changes')
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'line_balance', filter: `board=eq.${BOARD_NAME}` },
+                async (payload) => {
+                    if (pendingSave) return; // 如果是本窗口保存的，忽略
+                    await loadFromCloud();
+                    renderAll();
+                }
+            )
+            .subscribe();
+    }
+
+   
+    window.addEventListener('resize', updateGantt);
+    window.addEventListener('load', async () => {
+        await loadFromCloud();
+        if (lineData.length === 0) {
+            initDefaultData();
+            renderAll();
+            await saveToCloud();
+        }
+        setSync('connected');
+        subscribeRealtime();
+        productNameInput.addEventListener('input', () => saveToCloud());
+    });
+</script>
+</body>
+</html>
