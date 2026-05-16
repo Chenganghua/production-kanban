@@ -504,4 +504,24 @@
         active = u;
         if (!allData[active]) await load(active);
         renderTabs(); render(); updChart();
-        dot
+        dot.className = 'sync-dot'; txt.textContent = '已连接';
+    }
+
+    async function start() {
+        for (const u of users) await load(u);
+        active = users[0];
+        renderTabs(); render(); initChart(); updChart();
+        dot.className = 'sync-dot'; txt.textContent = '已连接';
+        db.channel('pub').on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async () => {
+            if (pending) return;
+            await load(active); render(); updChart();
+        }).subscribe();
+    }
+
+    document.getElementById('btnAdd').addEventListener('click', addDay);
+    document.getElementById('btnClearAll').addEventListener('click', clearAll);
+    start();
+})();
+</script>
+</body>
+</html>
