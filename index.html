@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生产数据看板</title>
+    <title>技改生产数据看板</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <style>
@@ -65,10 +65,10 @@
     <div class="sticky-header">
         <div class="tabs-bar" id="tabsBar"></div>
         <div class="nav-bar">
-            <h2 class="board-title" contenteditable="true">生产数据看板</h2>
+            <h2 class="board-title" contenteditable="true">生产数据看板-可编辑</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF17</div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华</div>
             </div>
         </div>
     </div>
@@ -81,7 +81,7 @@
         <div class="section-header">
             <span style="font-weight:700;">每日生产记录</span>
             <div style="display:flex; gap:8px;">
-                <button class="btn btn-danger" id="btnClearAll">🗑 删除全部</button>
+                <button class="btn btn-danger" id="btnClearAll">删除全部</button>
                 <button class="btn" id="btnAdd">＋ 添加一天</button>
             </div>
         </div>
@@ -105,8 +105,15 @@
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: {
+      getItem: (key) => null,
+      setItem: (key, value) => {},
+      removeItem: (key) => {}
+    }
+  }
+});
     let users = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let active = users[0];
     let allData = {};
@@ -213,7 +220,7 @@
                     <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
                     <td class="calc-cell">${fmtV(up)}</td>
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
-                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">🗑</button></td>
+                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">×</button></td>
                 </tr>`;
             });
             const ttd = tcp + tcm + tfp + tfm;
