@@ -1,255 +1,508 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>生产数据看板</title>
-<script src="https://unpkg.com/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body {margin:0;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;background:#f5f5f5;color:#000;}
-header {position:fixed;top:0;left:0;right:0;background:#fff;z-index:1000;border-bottom:1px solid #ccc;padding:5px 10px;display:flex;flex-direction:column;}
-#title-bar {display:flex;justify-content:space-between;align-items:center;}
-#dashboard-title {font-size:18px;font-weight:bold;cursor:text;}
-#meta-info {font-size:12px;color:#555;}
-#status-indicator {width:12px;height:12px;border-radius:50%;margin-left:5px;display:inline-block;background:red;animation:none;}
-#tabs {display:flex;align-items:center;margin-top:5px;}
-.tab {background:#eee;padding:5px 10px;margin-right:5px;border-radius:5px;display:flex;align-items:center;cursor:pointer;user-select:none;}
-.tab.active {background:#ddd;font-weight:bold;}
-.tab button {border:none;background:none;margin-left:3px;cursor:pointer;}
-#add-tab {padding:5px 10px;background:#ddd;border-radius:5px;cursor:pointer;}
-.container {margin-top:90px;padding:10px;}
-.card {background:#fff;border-radius:8px;padding:10px;margin-bottom:10px;overflow-x:auto;}
-#chart-container {height:300px;}
-table {width:100%;border-collapse:collapse;min-width:1200px;}
-th,td {border:1px solid #ccc;padding:5px;text-align:center;white-space:nowrap;}
-.summary {background:#fff3b0;font-weight:bold;}
-.total-summary {background:#b0e0ff;font-weight:bold;}
-input[type=number] {width:70px;}
-input:focus {outline:none;background:#e0f7ff;cursor:text;}
-button {cursor:pointer;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生产数据看板</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #f2f2f7; --card-bg: #ffffff; --border: #e0e0e0;
+            --blue: #007AFF; --red: #FF3B30; --text: #000000;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+            --radius-lg: 20px;
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+        }
+        *{ margin:0; padding:0; box-sizing:border-box; }
+        body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
+        .app{ width:100%; max-width:1700px; display:flex; flex-direction:column; gap:16px; }
+
+        .sticky-header{ position:sticky; top:0; z-index:100; background:var(--bg); padding-bottom:8px; display:flex; flex-direction:column; gap:16px; }
+
+        .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+        .tab{ padding:8px 16px; border-radius:20px; background:#f0f0f3; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text); display:flex; align-items:center; gap:6px; transition:all 0.2s; }
+        .tab.active{ background:var(--blue); color:#fff; }
+        .tab:hover:not(.active){ background:#e5e5ea; }
+        .tab .edit-tab{ font-size:12px; opacity:0.5; cursor:pointer; }
+        .tab .close-tab{ font-weight:400; opacity:0.6; cursor:pointer; }
+        .add-tab-btn{ padding:8px 16px; border-radius:20px; background:transparent; font-size:20px; cursor:pointer; border:2px dashed #ccc; color:#888; font-weight:600; min-width:44px; height:40px; display:flex; align-items:center; justify-content:center; }
+        .add-tab-btn:hover{ border-color:var(--blue); color:var(--blue); }
+
+        .nav-bar{ background:var(--card-bg); border-radius:var(--radius-lg); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+        .board-title{ font-size:18px; font-weight:700; outline:none; border:1px solid transparent; padding:2px 8px; border-radius:8px; min-width:150px; }
+        .board-title:hover{ border-color:#ccc; } .board-title:focus{ border-color:var(--blue); background:#fff; }
+        .sync-indicator{ display:flex; align-items:center; gap:6px; font-size:12px; }
+        .sync-dot{ width:8px; height:8px; border-radius:50%; background:#34C759; }
+        .sync-dot.syncing{ background:#FF9500; animation:pulse 1s infinite; }
+        @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        .chart-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px 10px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
+        .chart-wrapper{ height:400px; }
+        .toggle-panel{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; font-size:12px; align-items:center; }
+        .toggle-panel label{ display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+        .header-link{ display:flex; justify-content:flex-end; margin-bottom:6px; }
+        .header-link a{ color:var(--blue); text-decoration:none; font-size:13px; font-weight:500; }
+        .header-link a:hover{ text-decoration:underline; }
+
+        .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
+        .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+        .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
+        table{ width:100%; border-collapse:collapse; font-size:11px; min-width:1800px; }
+        th{ background:#f5f5f7; padding:6px 4px; font-size:10px; font-weight:700; border-bottom:2px solid #d0d0d0; }
+        td{ padding:5px 4px; text-align:center; border-bottom:1px solid #ececec; }
+        td.process-name{ font-weight:600; background:#fafafa; }
+        input[type="number"]{ width:65px; padding:5px 2px; border:1.5px solid #dcdcdc; border-radius:6px; font-size:11px; text-align:center; font-family:var(--font); }
+        .calc-cell{ font-weight:600; }
+        .summary-row td{ background:#fff9e6; font-weight:700; }
+        .grand-total-row td{ background:#e8f0fe; font-weight:700; }
+        .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; }
+        .btn-danger{ background:var(--red); }
+        .btn-delete{ background:#fff; color:#000; border:1.5px solid #d0d0d0; padding:5px 10px; border-radius:20px; font-size:12px; cursor:pointer; }
+        .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1c1c1e; color:#fff; padding:10px 22px; border-radius:24px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:all 0.3s; pointer-events:none; }
+        .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+        @media (max-width:750px){ .chart-wrapper{ height:280px; } }
+    </style>
 </head>
 <body>
-<header>
-<div id="title-bar">
-<div>
-<span id="dashboard-title" contenteditable="true">生产数据看板</span>
-<span id="status-indicator"></span>
+<div class="app">
+    <div class="sticky-header">
+        <div class="tabs-bar" id="tabsBar"></div>
+        <div class="nav-bar">
+            <h2 class="board-title" contenteditable="true">生产数据看板</h2>
+            <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+                <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF13</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="header-link"><a href="#" id="taktTimeLink">工序工位节拍数据</a></div>
+        <div class="toggle-panel" id="togglePanel"></div>
+        <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <div class="data-card">
+        <div class="section-header">
+            <span style="font-weight:700;">每日生产记录</span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-danger" id="btnClearAll">删除全部</button>
+                <button class="btn" id="btnAdd">＋ 添加一天</button>
+            </div>
+        </div>
+        <div class="table-scroll">
+            <table id="dataTable">
+                <thead><tr>
+                    <th>日期</th><th>工序</th><th>生产数量</th>
+                    <th>外观制程不良</th><th>外观来料不良</th>
+                    <th>功能制程不良</th><th>功能来料不良</th>
+                    <th>不良品总数</th><th>不良品率</th>
+                    <th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
+                </tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
-<div id="meta-info">制作人：陈港华 · 2021-12-7 · 版本 1.0</div>
-</div>
-<div id="tabs"></div>
-</header>
-<div class="container">
-<div class="card">
-<div style="margin-bottom:5px;">
-<label><input type="checkbox" class="chart-line" data-line="后焊产量" checked>后焊产量</label>
-<label><input type="checkbox" class="chart-line" data-line="组装产量" checked>组装产量</label>
-<label><input type="checkbox" class="chart-line" data-line="包装产量" checked>包装产量</label>
-<label><input type="checkbox" class="chart-line" data-line="总产量" checked>总产量</label>
-<label><input type="checkbox" class="chart-line" data-line="外观不良" checked>外观不良</label>
-<label><input type="checkbox" class="chart-line" data-line="功能不良" checked>功能不良</label>
-<label><input type="checkbox" class="chart-line" data-line="不良品总数" checked>不良品总数</label>
-<label><input type="checkbox" class="chart-line" data-line="不良品率" checked>不良品率</label>
-<label><input type="checkbox" class="chart-line" data-line="UPPH" checked>UPPH</label>
-<label><input type="checkbox" class="chart-line" data-line="总单价" checked>总单价</label>
-<a href="#" id="open-link" style="margin-left:20px;">工序工位节拍数据</a>
-</div>
-<canvas id="lineChart" height="300"></canvas>
-</div>
-<div class="card">
-<div style="margin-bottom:5px;">
-<button id="add-day">＋ 添加一天</button>
-<button id="delete-all">🗑 删除全部</button>
-</div>
-<table id="data-table">
-<thead>
-<tr>
-<th>日期</th><th>工序</th><th>生产数量</th><th>外观制程不良</th><th>外观来料不良</th><th>功能制程不良</th><th>功能来料不良</th><th>不良品总数</th><th>不良品率</th><th>人数</th><th>当日工时</th><th>总工时</th><th>平均小时产能</th><th>UPPH</th><th>工序单价</th><th>操作</th>
-</tr>
-</thead>
-<tbody></tbody>
-<tfoot>
-<tr class="total-summary"><td colspan="2">全部汇总</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td>-</td><td></td></tr>
-</tfoot>
-</table>
-</div>
+<div class="toast" id="toast"></div>
+
 <script>
-const SUPABASE_URL = 'https://your-supabase-url.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-const supabase = supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let boards = [];
-let currentBoard = '';
-let dataStore = {};
-let chart = null;
-const statusIndicator = document.getElementById('status-indicator');
+(function() {
+    const SUPABASE_URL = 'https://your-supabase-url.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function updateStatus(status){
-statusIndicator.style.animation='none';
-if(status==='online'){statusIndicator.style.background='green';}
-else if(status==='syncing'){statusIndicator.style.background='orange';statusIndicator.style.animation='blink 1s infinite';}
-else{statusIndicator.style.background='red';}
-}
-document.head.insertAdjacentHTML('beforeend','<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}</style>');
+    let users = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
+    let active = users[0];
+    let allData = {};
+    let chart;
+    let pending = false;
+    let dirty = false;
 
-function createTab(name){
-const tab = document.createElement('div');
-tab.className='tab';
-tab.textContent=name;
-tab.dataset.name=name;
-tab.addEventListener('click',()=>{setCurrentBoard(name);});
-const editBtn = document.createElement('button');editBtn.textContent='✎';
-editBtn.addEventListener('click',(e)=>{e.stopPropagation();const newName=prompt('输入标签名',tab.dataset.name);if(newName){renameBoard(tab.dataset.name,newName);}});
-tab.appendChild(editBtn);
-if(boards.length>0){const delBtn = document.createElement('button');delBtn.textContent='×';delBtn.addEventListener('click',(e)=>{e.stopPropagation();if(confirm('确认删除该标签及所有数据?')){deleteBoard(tab.dataset.name);}});tab.appendChild(delBtn);}
-document.getElementById('tabs').insertBefore(tab,document.getElementById('add-tab'));
-boards.push(name);
-dataStore[name]=[];
-}
+    const tabsBar = document.getElementById('tabsBar');
+    const tbody = document.getElementById('tableBody');
+    const toast = document.getElementById('toast');
+    const canvas = document.getElementById('mainChart');
+    const dot = document.getElementById('syncDot');
+    const txt = document.getElementById('syncText');
+    const togglePanel = document.getElementById('togglePanel');
 
-function setCurrentBoard(name){
-currentBoard=name;
-document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.name===name)t.classList.add('active');});
-renderTable();
-renderChart();
-}
+    function showMsg(msg) {
+        toast.textContent = msg; toast.classList.add('show');
+        clearTimeout(window._t);
+        window._t = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
 
-function renameBoard(oldName,newName){
-boards=boards.map(b=>b===oldName?newName:b);
-dataStore[newName]=dataStore[oldName];
-delete dataStore[oldName];
-document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.name===oldName)t.dataset.name=newName;t.firstChild.textContent=newName;});
-if(currentBoard===oldName)currentBoard=newName;
-}
+    async function load(u) {
+        dot.className = 'sync-dot syncing'; txt.textContent = '同步中...';
+        try {
+            const { data: rows, error } = await db.from('production_records').select('*').eq('board', u).order('date', { ascending: true });
+            if (error) throw error;
+            allData[u] = rows ? rows.map(r => ({
+                id: r.id, date: r.date, process: r.process,
+                prod: r.production_qty || 0,
+                cosProc: r.cosmetic_process_defect || 0,
+                cosMat: r.cosmetic_material_defect || 0,
+                funcProc: r.functional_process_defect || 0,
+                funcMat: r.functional_material_defect || 0,
+                workers: r.workers || 0, hrs: r.daily_hours || 0
+            })) : [];
+            dot.className = 'sync-dot'; txt.textContent = '已连接';
+        } catch (e) { console.error(e); dot.className = 'sync-dot error'; txt.textContent = '离线'; allData[u] = []; }
+    }
 
-function deleteBoard(name){
-boards=boards.filter(b=>b!==name);
-delete dataStore[name];
-if(currentBoard===name)currentBoard=boards[0]||'';
-document.getElementById('tabs').innerHTML='<div id="add-tab">＋</div>';
-boards.forEach(b=>createTabElement(b));
-createAddTab();
-setCurrentBoard(currentBoard);
-}
+    async function save(u) {
+        const rows = allData[u] || [];
+        if (!rows.length) return;
+        await db.from('production_records').upsert(rows.map(r => ({
+            date: r.date, process: r.process, board: u,
+            production_qty: r.prod,
+            cosmetic_process_defect: r.cosProc,
+            cosmetic_material_defect: r.cosMat,
+            functional_process_defect: r.funcProc,
+            functional_material_defect: r.funcMat,
+            workers: r.workers, daily_hours: r.hrs
+        })), { onConflict: 'date, process, board' });
+    }
 
-function createAddTab(){
-document.getElementById('add-tab').addEventListener('click',()=>{const name=prompt('输入新标签名','新标签');if(name){createTab(name);setCurrentBoard(name);}});
-}
+    function totalDefect(r) { return r.cosProc + r.cosMat + r.funcProc + r.funcMat; }
+    function upph(p, w, h) { return (w <= 0 || h <= 0 || p <= 0) ? 0 : p / (w * h); }
+    function defectRate(p, d) { return p <= 0 ? null : (d / p) * 100; }
+    function fmtR(v) { return v === null || isNaN(v) ? '-' : v.toFixed(2) + '%'; }
+    function fmtV(v, isP) { if (v === null || isNaN(v) || v <= 0) return '-'; return isP ? '¥' + v.toFixed(2) : v.toFixed(2); }
 
-function createTabElement(name){createTab(name);}
+    function render() {
+        const rows = allData[active] || [];
+        tbody.innerHTML = '';
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="16" style="padding:30px; opacity:0.5;">暂无数据，点击"+ 添加一天"开始</td></tr>';
+            return;
+        }
+        const grp = {};
+        rows.forEach(r => { if (!grp[r.date]) grp[r.date] = []; grp[r.date].push(r); });
+        const dates = Object.keys(grp).sort();
+        let h = '';
+        dates.forEach(d => {
+            const day = grp[d].sort((a,b) => ['后焊','组装','包装'].indexOf(a.process) - ['后焊','组装','包装'].indexOf(b.process));
+            let tp = 0, tcp = 0, tcm = 0, tfp = 0, tfm = 0, tw = 0, th = 0, twh = 0, tpr = 0;
+            day.forEach(r => {
+                const w = r.workers, hr = r.hrs, wh = w * hr;
+                const td = totalDefect(r);
+                const up = upph(r.prod, w, hr);
+                const pr = up > 0 ? 20 / up : 0;
+                tp += r.prod; tcp += r.cosProc; tcm += r.cosMat; tfp += r.funcProc; tfm += r.funcMat;
+                tw += w; th += hr; twh += wh; if (up > 0) tpr += pr;
+                h += `<tr id="r-${d}-${r.process}">
+                    <td>${d}</td><td class="process-name">${r.process}</td>
+                    <td><input type="number" value="${r.prod}" data-d="${d}" data-p="${r.process}" data-f="prod"></td>
+                    <td><input type="number" value="${r.cosProc}" data-d="${d}" data-p="${r.process}" data-f="cosProc"></td>
+                    <td><input type="number" value="${r.cosMat}" data-d="${d}" data-p="${r.process}" data-f="cosMat"></td>
+                    <td><input type="number" value="${r.funcProc}" data-d="${d}" data-p="${r.process}" data-f="funcProc"></td>
+                    <td><input type="number" value="${r.funcMat}" data-d="${d}" data-p="${r.process}" data-f="funcMat"></td>
+                    <td class="calc-cell">${td}</td>
+                    <td class="calc-cell">${fmtR(defectRate(r.prod, td))}</td>
+                    <td><input type="number" value="${w}" data-d="${d}" data-p="${r.process}" data-f="workers"></td>
+                    <td><input type="number" value="${hr}" data-d="${d}" data-p="${r.process}" data-f="hrs"></td>
+                    <td class="calc-cell">${wh.toFixed(1)}</td>
+                    <td class="calc-cell">${(hr > 0 ? r.prod / hr : 0).toFixed(2)}</td>
+                    <td class="calc-cell">${fmtV(up)}</td>
+                    <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
+                    <td><button class="btn-delete del-p" data-d="${d}" data-p="${r.process}">🗑</button></td>
+                </tr>`;
+            });
+            const ttd = tcp + tcm + tfp + tfm;
+            h += `<tr class="summary-row" id="s-${d}">
+                <td colspan="2" style="text-align:right;">${d} 汇总</td>
+                <td><strong>${tp}</strong></td>
+                <td>${tcp}</td><td>${tcm}</td><td>${tfp}</td><td>${tfm}</td>
+                <td>${ttd}</td><td>${fmtR(defectRate(tp, ttd))}</td>
+                <td>${tw}</td><td>${th.toFixed(1)}</td><td>${twh.toFixed(1)}</td>
+                <td>${(th > 0 ? tp / th : 0).toFixed(2)}</td><td>${fmtV(upph(tp, tw, th))}</td>
+                <td><strong>¥${tpr.toFixed(2)}</strong></td>
+                <td><button class="btn-delete del-d" data-d="${d}">删全天</button></td>
+            </tr>`;
+        });
+        h += `<tr class="grand-total-row" id="gt">
+            <td colspan="2" style="text-align:right;">全部汇总</td>
+            <td class="gt-prod">0</td><td class="gt-cosProc">0</td><td class="gt-cosMat">0</td>
+            <td class="gt-funcProc">0</td><td class="gt-funcMat">0</td><td class="gt-totalDef">0</td>
+            <td class="gt-rate">-</td><td class="gt-workers">0</td><td class="gt-dailyHrs">0</td>
+            <td class="gt-totalHrs">0</td><td class="gt-avgHr">0</td><td class="gt-upph">-</td>
+            <td class="gt-unitPrice">-</td><td></td>
+        </tr>`;
+        tbody.innerHTML = h;
+        bindEvts();
+        updateGT();
+    }
 
-function fetchData(){updateStatus('syncing');supabase.from('production_records').select('*').then(res=>{if(res.error){updateStatus('offline');return;}res.data.forEach(row=>{if(!dataStore[row.board])dataStore[row.board]=[];dataStore[row.board].push(row);});updateStatus('online');setCurrentBoard(boards[0]||'');});}
+    function updateGT() {
+        const all = allData[active] || [];
+        const gt = document.getElementById('gt');
+        if (!gt) return;
+        if (!all.length) { gt.style.display = 'none'; return; }
+        gt.style.display = '';
+        let tp = 0, tcp = 0, tcm = 0, tfp = 0, tfm = 0, tw = 0, th = 0, twh = 0;
+        const dp = {};
+        all.forEach(r => {
+            tp += r.prod; tcp += r.cosProc; tcm += r.cosMat; tfp += r.funcProc; tfm += r.funcMat;
+            tw += r.workers; th += r.hrs; twh += r.workers * r.hrs;
+            const up = upph(r.prod, r.workers, r.hrs);
+            const pr = up > 0 ? 20 / up : 0;
+            if (!dp[r.date]) dp[r.date] = 0;
+            dp[r.date] += pr;
+        });
+        const ttd = tcp + tcm + tfp + tfm;
+        const days = Object.keys(dp).length;
+        let sumPr = 0; Object.values(dp).forEach(v => sumPr += v);
+        gt.querySelector('.gt-prod').textContent = tp;
+        gt.querySelector('.gt-cosProc').textContent = tcp;
+        gt.querySelector('.gt-cosMat').textContent = tcm;
+        gt.querySelector('.gt-funcProc').textContent = tfp;
+        gt.querySelector('.gt-funcMat').textContent = tfm;
+        gt.querySelector('.gt-totalDef').textContent = ttd;
+        gt.querySelector('.gt-rate').textContent = fmtR(defectRate(tp, ttd));
+        gt.querySelector('.gt-workers').textContent = tw;
+        gt.querySelector('.gt-dailyHrs').textContent = th.toFixed(1);
+        gt.querySelector('.gt-totalHrs').textContent = twh.toFixed(1);
+        gt.querySelector('.gt-avgHr').textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        gt.querySelector('.gt-upph').textContent = fmtV(upph(tp, tw, th));
+        gt.querySelector('.gt-unitPrice').textContent = '¥' + (days > 0 ? sumPr / days : 0).toFixed(2);
+    }
 
-function renderTable(){
-const tbody=document.querySelector('#data-table tbody');tbody.innerHTML='';
-if(!currentBoard)return;
-const rows=dataStore[currentBoard]||[];
-const grouped={};rows.forEach(r=>{if(!grouped[r.date])grouped[r.date]=[];grouped[r.date].push(r);});
-for(const date in grouped){
-grouped[date].forEach(r=>{tbody.appendChild(createRow(r));});
-tbody.appendChild(createSummaryRow(date,grouped[date]));
-}
-updateTotalSummary();
-}
+    function bindEvts() {
+        document.querySelectorAll('input').forEach(i => {
+            i.addEventListener('input', function(e) {
+                const el = e.target;
+                const row = (allData[active] || []).find(r => r.date === el.dataset.d && r.process === el.dataset.p);
+                if (!row) return;
+                row[el.dataset.f] = parseFloat(el.value) || 0;
+                updRow(el.dataset.d, el.dataset.p);
+                updSum(el.dataset.d);
+                updateGT();
+                dirty = true;
+            });
+        });
+        document.querySelectorAll('.del-p').forEach(b => b.addEventListener('click', async function() {
+            if (!confirm('删除记录？')) return;
+            const row = (allData[active] || []).find(r => r.date === this.dataset.d && r.process === this.dataset.p);
+            if (row && row.id) await db.from('production_records').delete().eq('id', row.id);
+            allData[active] = (allData[active] || []).filter(r => !(r.date === this.dataset.d && r.process === this.dataset.p));
+            render(); updChart();
+        }));
+        document.querySelectorAll('.del-d').forEach(b => b.addEventListener('click', async function() {
+            if (!confirm('删除全天？')) return;
+            const rows = (allData[active] || []).filter(r => r.date === this.dataset.d);
+            for (const r of rows) if (r.id) await db.from('production_records').delete().eq('id', r.id);
+            allData[active] = (allData[active] || []).filter(r => r.date !== this.dataset.d);
+            render(); updChart();
+        }));
+    }
 
-function createRow(r){
-const tr=document.createElement('tr');tr.dataset.date=r.date;tr.dataset.process=r.process;
-tr.innerHTML=`<td>${r.date}</td><td>${r.process}</td>
-<td><input type="number" value="${r.production_qty||0}"></td>
-<td><input type="number" value="${r.cosmetic_process_defect||0}"></td>
-<td><input type="number" value="${r.cosmetic_material_defect||0}"></td>
-<td><input type="number" value="${r.functional_process_defect||0}"></td>
-<td><input type="number" value="${r.functional_material_defect||0}"></td>
-<td>-</td><td>-</td>
-<td><input type="number" value="${r.workers||0}"></td>
-<td><input type="number" value="${r.daily_hours||0}"></td>
-<td>-</td><td>-</td><td>-</td><td>-</td>
-<td><button>🗑</button></td>`;
-tr.querySelectorAll('input').forEach(inp=>{inp.addEventListener('focus',e=>e.target.select());inp.addEventListener('input',()=>{updateCalculations();});});
-tr.querySelector('button').addEventListener('click',()=>{if(confirm('确认删除该工序行?')){dataStore[currentBoard]=dataStore[currentBoard].filter(d=>!(d.date===r.date&&d.process===r.process));renderTable();}});
-return tr;
-}
+    function updRow(d, p) {
+        const row = (allData[active] || []).find(r => r.date === d && r.process === p);
+        if (!row) return;
+        const tr = document.getElementById('r-' + d + '-' + p);
+        if (!tr) return;
+        const td = totalDefect(row);
+        const up = upph(row.prod, row.workers, row.hrs);
+        const pr = up > 0 ? 20 / up : 0;
+        tr.children[7].textContent = td;
+        tr.children[8].textContent = fmtR(defectRate(row.prod, td));
+        tr.children[11].textContent = (row.workers * row.hrs).toFixed(1);
+        tr.children[12].textContent = (row.hrs > 0 ? row.prod / row.hrs : 0).toFixed(2);
+        tr.children[13].textContent = fmtV(up);
+        tr.children[14].textContent = pr > 0 ? '¥' + pr.toFixed(2) : '-';
+    }
 
-function createSummaryRow(date,rows){
-const tr=document.createElement('tr');tr.className='summary';tr.dataset.date=date;
-tr.innerHTML=`<td colspan="2">汇总</td>
-<td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td>
-<td>0</td><td>0</td><td>0</td><td>-</td><td>-</td><td>-</td>
-<td><button>删全天</button></td>`;
-tr.querySelector('button').addEventListener('click',()=>{if(confirm('确认删除该日期所有数据?')){dataStore[currentBoard]=dataStore[currentBoard].filter(d=>d.date!==date);renderTable();}});
-return tr;
-}
+    function updSum(d) {
+        const rows = (allData[active] || []).filter(r => r.date === d);
+        if (!rows.length) return;
+        const tr = document.getElementById('s-' + d);
+        if (!tr) return;
+        let tp = 0, tcp = 0, tcm = 0, tfp = 0, tfm = 0, tw = 0, th = 0, twh = 0, tpr = 0;
+        rows.forEach(r => {
+            tp += r.prod; tcp += r.cosProc; tcm += r.cosMat; tfp += r.funcProc; tfm += r.funcMat;
+            tw += r.workers; th += r.hrs; twh += r.workers * r.hrs;
+            const up = upph(r.prod, r.workers, r.hrs);
+            if (up > 0) tpr += 20 / up;
+        });
+        const ttd = tcp + tcm + tfp + tfm;
+        const cells = tr.children;
+        cells[2].textContent = tp; cells[3].textContent = tcp; cells[4].textContent = tcm;
+        cells[5].textContent = tfp; cells[6].textContent = tfm; cells[7].textContent = ttd;
+        cells[8].textContent = fmtR(defectRate(tp, ttd));
+        cells[9].textContent = tw; cells[10].textContent = th.toFixed(1); cells[11].textContent = twh.toFixed(1);
+        cells[12].textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        cells[13].textContent = fmtV(upph(tp, tw, th));
+        cells[14].textContent = '¥' + tpr.toFixed(2);
+    }
 
-function updateCalculations(){
-const tbody=document.querySelector('#data-table tbody');
-const rows=[...tbody.querySelectorAll('tr:not(.summary)')];
-const grouped={};rows.forEach(r=>{const date=r.dataset.date;if(!grouped[date])grouped[date]=[];grouped[date].push(r);});
-for(const date in grouped){
-const sums={production_qty:0,cosmetic_process_defect:0,cosmetic_material_defect:0,functional_process_defect:0,functional_material_defect:0,workers:0,daily_hours:0};
-grouped[date].forEach(tr=>{const v=n=>parseFloat(n.value)||0;
-sums.production_qty+=v(tr.cells[2].firstChild);
-sums.cosmetic_process_defect+=v(tr.cells[3].firstChild);
-sums.cosmetic_material_defect+=v(tr.cells[4].firstChild);
-sums.functional_process_defect+=v(tr.cells[5].firstChild);
-sums.functional_material_defect+=v(tr.cells[6].firstChild);
-sums.workers+=v(tr.cells[9].firstChild);
-sums.daily_hours+=v(tr.cells[10].firstChild);
-const defect=sums.cosmetic_process_defect+sums.cosmetic_material_defect+sums.functional_process_defect+sums.functional_material_defect;
-const rate=tr.cells[2].firstChild.value>0?defect/tr.cells[2].firstChild.value*100:'-';
-const total_hours=sums.workers*sums.daily_hours;
-const avg_prod=sums.daily_hours>0?tr.cells[2].firstChild.value/tr.cells[10].firstChild.value:'-';
-const upph=(tr.cells[9].firstChild.value*tr.cells[10].firstChild.value)>0?tr.cells[2].firstChild.value/(tr.cells[9].firstChild.value*tr.cells[10].firstChild.value):'-';
-const price=(upph>0?20/(upph):'-');
-tr.cells[7].textContent=defect.toFixed(2);
-tr.cells[8].textContent=rate==='-'?'-':rate.toFixed(2)+'%';
-tr.cells[11].textContent=total_hours.toFixed(2);
-tr.cells[12].textContent=avg_prod==='-'?'-':avg_prod.toFixed(2);
-tr.cells[13].textContent=upph==='-'?'-':upph.toFixed(2);
-tr.cells[14].textContent=price==='-'?'-':price.toFixed(2);
-});}
-updateTotalSummary();
-}
+    document.addEventListener('click', function(e) {
+        if (!dirty) return;
+        if (e.target.tagName !== 'INPUT') {
+            dirty = false;
+            pending = true;
+            save(active).then(() => { pending = false; updChart(); });
+        }
+    });
 
-function updateTotalSummary(){
-const tfoot=document.querySelector('#data-table tfoot tr');
-const tbody=[...document.querySelectorAll('#data-table tbody tr.summary')];
-let sums={production_qty:0,cosmetic_process_defect:0,cosmetic_material_defect:0,functional_process_defect:0,functional_material_defect:0,workers:0,daily_hours:0,total_price:0,count:0};
-tbody.forEach(tr=>{const v=c=>parseFloat(tr.cells[c].textContent)||0;sums.production_qty+=v(2);sums.cosmetic_process_defect+=v(3);sums.cosmetic_material_defect+=v(4);sums.functional_process_defect+=v(5);sums.functional_material_defect+=v(6);sums.workers+=v(9);sums.daily_hours+=v(10);sums.total_price+=v(14);sums.count++;});
-const total_defect=sums.cosmetic_process_defect+sums.cosmetic_material_defect+sums.functional_process_defect+sums.functional_material_defect;
-const rate=sums.production_qty>0?total_defect/sums.production_qty*100:'-';
-const avg_price=sums.count>0?sums.total_price/sums.count:0;
-tfoot.cells[2].textContent=sums.production_qty.toFixed(2);
-tfoot.cells[3].textContent=sums.cosmetic_process_defect.toFixed(2);
-tfoot.cells[4].textContent=sums.cosmetic_material_defect.toFixed(2);
-tfoot.cells[5].textContent=sums.functional_process_defect.toFixed(2);
-tfoot.cells[6].textContent=sums.functional_material_defect.toFixed(2);
-tfoot.cells[7].textContent=total_defect.toFixed(2);
-tfoot.cells[8].textContent=rate==='-'?'-':rate.toFixed(2)+'%';
-tfoot.cells[9].textContent=sums.workers.toFixed(2);
-tfoot.cells[10].textContent=sums.daily_hours.toFixed(2);
-tfoot.cells[11].textContent=(sums.workers*sums.daily_hours).toFixed(2);
-tfoot.cells[12].textContent=(sums.production_qty/sums.daily_hours).toFixed(2);
-tfoot.cells[13].textContent=(sums.production_qty/(sums.workers*sums.daily_hours)).toFixed(2);
-tfoot.cells[14].textContent=avg_price.toFixed(2);
-}
+    async function addDay() {
+        const today = new Date().toISOString().split('T')[0];
+        const d = prompt('请输入日期 (YYYY-MM-DD)：', today);
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        if ((allData[active] || []).some(r => r.date === d)) {
+            showMsg('日期 ' + d + ' 已存在');
+            return;
+        }
+        const rows = ['后焊','组装','包装'].map(p => ({
+            date: d, process: p, prod: 0, cosProc: 0, cosMat: 0, funcProc: 0, funcMat: 0, workers: 0, hrs: 0
+        }));
+        allData[active] = (allData[active] || []).concat(rows);
+        await save(active);
+        await load(active);
+        render();
+        updChart();
+        showMsg('已添加 ' + d);
+    }
 
-function renderChart(){const ctx=document.getElementById('lineChart').getContext('2d');if(chart)chart.destroy();chart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[]},options:{responsive:true,interaction:{mode:'index',intersect:false},scales:{y:{type:'linear',position:'left'},y1:{type:'linear',position:'right'}}}});}
+    async function clearAll() {
+        if (!confirm('确定删除当前页面所有数据？')) return;
+        await db.from('production_records').delete().eq('board', active);
+        allData[active] = [];
+        render();
+        updChart();
+        showMsg('已清除全部数据');
+    }
 
-document.getElementById('add-day').addEventListener('click',()=>{const date=prompt('输入日期',new Date().toISOString().split('T')[0]);if(!date)return;const exists=(dataStore[currentBoard]||[]).some(d=>d.date===date);if(exists){alert('日期已存在');return;}['后焊','组装','包装'].forEach(p=>{dataStore[currentBoard].push({date,p,production_qty:0,cosmetic_process_defect:0,cosmetic_material_defect:0,functional_process_defect:0,functional_material_defect:0,workers:0,daily_hours:0,board:currentBoard});});renderTable();});
+    function prepChart() {
+        const rows = allData[active] || [];
+        const map = {};
+        rows.forEach(r => {
+            if (!map[r.date]) map[r.date] = { 后焊:0, 组装:0, 包装:0, cos:0, func:0, w:0, h:0 };
+            map[r.date][r.process] += r.prod;
+            map[r.date].cos += r.cosProc + r.cosMat;
+            map[r.date].func += r.funcProc + r.funcMat;
+            map[r.date].w += r.workers; map[r.date].h += r.hrs;
+        });
+        const dates = Object.keys(map).sort();
+        const s = { dates, 后焊:[], 组装:[], 包装:[], total:[], cos:[], func:[], td:[], rate:[], upph:[], price:[] };
+        dates.forEach(d => {
+            const v = map[d];
+            s.后焊.push(v.后焊); s.组装.push(v.组装); s.包装.push(v.包装);
+            const tp = v.后焊 + v.组装 + v.包装;
+            s.total.push(tp); s.cos.push(v.cos); s.func.push(v.func);
+            const ttd = v.cos + v.func;
+            s.td.push(ttd); s.rate.push(tp > 0 ? +(ttd / tp * 100).toFixed(2) : null);
+            const u = tp > 0 && v.w > 0 && v.h > 0 ? tp / (v.w * v.h) : 0;
+            s.upph.push(u > 0 ? +u.toFixed(2) : null);
+            let pr = 0;
+            rows.filter(r => r.date === d).forEach(r => {
+                const up = upph(r.prod, r.workers, r.hrs);
+                if (up > 0) pr += 20 / up;
+            });
+            s.price.push(+pr.toFixed(2));
+        });
+        return s;
+    }
 
-document.getElementById('delete-all').addEventListener('click',()=>{if(confirm('确认删除当前标签所有数据?')){dataStore[currentBoard]=[];renderTable();}});
+    function updChart() {
+        if (!chart) initChart();
+        const s = prepChart();
+        chart.data.labels = s.dates;
+        const keys = ['后焊','组装','包装','total','cos','func','td','rate','upph','price'];
+        chart.data.datasets.forEach((ds, i) => { ds.data = s[keys[i]]; });
+        chart.update();
+    }
 
-document.addEventListener('click',(e)=>{if(e.target.tagName!=='INPUT'){saveData();}});
+    function initChart() {
+        if (chart) chart.destroy();
+        const s = prepChart();
+        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+        const colors = ['#FF9500','#34C759','#007AFF','#000','#AF52DE','#5AC8FA','#FF3B30','#FF9500','#34C759','#FF2D55'];
+        const dashes = [[], [], [], [], [], [], [], [5,2], [3,3], [6,2]];
+        const yAxes = ['y','y','y','y','y','y','y','y1','y1','y1'];
+        const datasets = labels.map((l, i) => ({
+            label: l, data: s[['后焊','组装','包装','total','cos','func','td','rate','upph','price'][i]],
+            borderColor: colors[i], borderWidth: i === 3 ? 3 : 2.5,
+            borderDash: dashes[i], tension: 0.3, yAxisID: yAxes[i], pointRadius: 2, pointHoverRadius: 5, fill: false
+        }));
+        chart = new Chart(canvas, {
+            type: 'line', data: { labels: s.dates, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { type: 'linear', position: 'left', title: { display: true, text: '数量' }, beginAtZero: true },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: '比率/UPPH/单价' }, grid: { display: false }, beginAtZero: true }
+                }
+            }
+        });
+        buildTogglePanel();
+    }
 
-function saveData(){
-updateStatus('syncing');const rows=dataStore[currentBoard]||[];rows.forEach(async r=>{await supabase.from('production_records').upsert(r,{onConflict:['date','process','board']});});updateStatus('online');}
+    function buildTogglePanel() {
+        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+        togglePanel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
+        labels.forEach((l, i) => {
+            togglePanel.innerHTML += `<label><input type="checkbox" checked data-idx="${i}"> ${l}</label>`;
+        });
+        document.querySelectorAll('#togglePanel input').forEach(cb => {
+            cb.addEventListener('change', function() {
+                if (!chart) return;
+                chart.setDatasetVisibility(parseInt(this.dataset.idx), this.checked);
+                chart.update();
+            });
+        });
+    }
 
-createTab('陈港华');createTab('龙波章');createTab('戴腾昭');createTab('蔡旺知');createAddTab();setCurrentBoard('陈港华');fetchData();
+    function renderTabs() {
+        tabsBar.innerHTML = users.map(u => `<button class="tab ${u === active ? 'active' : ''}" data-u="${u}">${u}<span class="edit-tab">✎</span>${users.length > 1 ? '<span class="close-tab">×</span>' : ''}</button>`).join('') + '<button class="add-tab-btn">+</button>';
+        tabsBar.querySelectorAll('.tab').forEach(b => b.addEventListener('click', e => {
+            if (e.target.classList.contains('edit-tab') || e.target.classList.contains('close-tab')) return;
+            switchUser(b.dataset.u);
+        }));
+        tabsBar.querySelectorAll('.edit-tab').forEach(s => s.addEventListener('click', e => {
+            e.stopPropagation();
+            const old = s.parentElement.dataset.u;
+            const n = prompt('新名称：', old);
+            if (n && n.trim() && n !== old && !users.includes(n.trim())) {
+                allData[n] = allData[old] || []; delete allData[old];
+                users = users.map(u => u === old ? n.trim() : u);
+                if (active === old) active = n.trim();
+                renderTabs(); render(); updChart();
+            }
+        }));
+        tabsBar.querySelectorAll('.close-tab').forEach(s => s.addEventListener('click', async e => {
+            e.stopPropagation();
+            const u = s.parentElement.dataset.u;
+            if (!confirm('删除页面？')) return;
+            await db.from('production_records').delete().eq('board', u);
+            delete allData[u]; users = users.filter(b => b !== u);
+            if (active === u) active = users[0];
+            renderTabs(); render(); updChart();
+        }));
+        tabsBar.querySelector('.add-tab-btn').addEventListener('click', () => {
+            const n = prompt('新页面：');
+            if (!n || !n.trim() || users.includes(n.trim())) return;
+            users.push(n.trim()); active = n.trim(); allData[active] = [];
+            renderTabs(); render(); updChart();
+        });
+    }
 
-document.querySelectorAll('.chart-line').forEach(cb=>{cb.addEventListener('change',()=>{renderChart();});});
-document.getElementById('open-link').addEventListener('click',()=>{const url=prompt('输入网址');if(url)window.open(url,'_blank');});
-</script>
-</body>
-</html>
+    async function switchUser(u) {
+        if (u === active) return;
+        active = u;
+        if (!allData[active]) await load(active);
+        renderTabs(); render(); updChart();
+        dot.className = 'sync-dot'; txt.textContent = '已连接';
+    }
+
+    async function start() {
+        for (const u of users) await load(u);
+        active = users[0];
+        renderTabs(); render(); initChart(); updChart();
+        dot.className = 'sync-dot
