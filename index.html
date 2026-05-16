@@ -67,7 +67,18 @@
         .header-link a{ display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; background:var(--blue); color:#fff; text-decoration:none; }
         .header-link a:hover{ opacity:0.85; }
 
-        .target-bar{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:12px 16px; box-shadow:var(--shadow-sm); }
+        .target-bar {
+    display:flex;
+    flex-wrap:nowrap;        /* 强制不换行 */
+    gap:8px;
+    align-items:center;
+    overflow-x:auto;         /* 内容过多时允许水平滚动 */
+    white-space:nowrap;      /* 文字不换行 */
+    background:var(--card-bg);
+    border-radius:var(--radius-lg);
+    padding:10px 14px;
+    box-shadow:var(--shadow-sm);
+}
         .target-bar label{ font-size:13px; font-weight:500; }
         .target-bar input{ width:100px; padding:6px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; text-align:center; }
 
