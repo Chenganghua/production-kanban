@@ -87,10 +87,15 @@
 
 <script>
   
-    const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: {
+      getItem: (key) => null,
+      setItem: (key, value) => {},
+      removeItem: (key) => {}
+    }
+  }
+});
     const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
     const BOARD_NAME = '线平衡';  // 固定看板名，如需多页面可扩展
     let lineData = [];
