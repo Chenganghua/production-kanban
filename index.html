@@ -18,9 +18,7 @@
         *{ margin:0; padding:0; box-sizing:border-box; }
         body{ font-family:var(--font); background:var(--bg); color:var(--text); padding:16px 12px 40px; display:flex; justify-content:center; }
         .app{ width:100%; max-width:1700px; display:flex; flex-direction:column; gap:16px; }
-
         .sticky-header{ position:sticky; top:0; z-index:100; background:var(--bg); padding-bottom:8px; display:flex; flex-direction:column; gap:16px; }
-
         .tabs-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:10px 16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
         .tab{ padding:8px 16px; border-radius:20px; background:#f0f0f3; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text); display:flex; align-items:center; gap:6px; transition:all 0.2s; }
         .tab.active{ background:var(--blue); color:#fff; }
@@ -29,7 +27,6 @@
         .tab .close-tab{ font-weight:400; opacity:0.6; cursor:pointer; }
         .add-tab-btn{ padding:8px 16px; border-radius:20px; background:transparent; font-size:20px; cursor:pointer; border:2px dashed #ccc; color:#888; font-weight:600; min-width:44px; height:40px; display:flex; align-items:center; justify-content:center; }
         .add-tab-btn:hover{ border-color:var(--blue); color:var(--blue); }
-
         .nav-bar{ background:var(--card-bg); border-radius:var(--radius-lg); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
         .board-title{ font-size:18px; font-weight:700; outline:none; border:1px solid transparent; padding:2px 8px; border-radius:8px; min-width:150px; }
         .board-title:hover{ border-color:#ccc; } .board-title:focus{ border-color:var(--blue); background:#fff; }
@@ -37,7 +34,6 @@
         .sync-dot{ width:8px; height:8px; border-radius:50%; background:#34C759; }
         .sync-dot.syncing{ background:#FF9500; animation:pulse 1s infinite; }
         @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.3} }
-
         .chart-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px 10px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
         .chart-wrapper{ height:400px; }
         .toggle-panel{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; font-size:12px; align-items:center; }
@@ -45,7 +41,6 @@
         .header-link{ display:flex; justify-content:flex-end; margin-bottom:6px; }
         .header-link a{ color:var(--blue); text-decoration:none; font-size:13px; font-weight:500; }
         .header-link a:hover{ text-decoration:underline; }
-
         .data-card{ background:var(--card-bg); border-radius:var(--radius-lg); padding:16px 14px; border:1px solid var(--border); box-shadow:var(--shadow-md); }
         .section-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
         .table-scroll{ overflow-x:auto; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
@@ -73,17 +68,15 @@
             <h2 class="board-title" contenteditable="true">生产数据看板</h2>
             <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
                 <div class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncText">连接中...</span></div>
-                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF15</div>
+                <div style="font-size:11px; opacity:0.8;">制作人：陈港华 · 2021-12-7 · VF16</div>
             </div>
         </div>
     </div>
-
     <div class="chart-card">
         <div class="header-link"><a href="#" id="taktTimeLink">工序工位节拍数据</a></div>
         <div class="toggle-panel" id="togglePanel"></div>
         <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
     </div>
-
     <div class="data-card">
         <div class="section-header">
             <span style="font-weight:700;">每日生产记录</span>
@@ -129,6 +122,7 @@
     const txt = document.getElementById('syncText');
     const togglePanel = document.getElementById('togglePanel');
 
+    // 超链接
     document.getElementById('taktTimeLink').addEventListener('click', function(e) {
         e.preventDefault();
         const url = prompt('请输入工序工位节拍数据的网址：', 'https://');
@@ -354,7 +348,7 @@
         }
     });
 
-    async function addDay() {
+    function addDay() {
         const today = new Date().toISOString().split('T')[0];
         const d = prompt('请输入日期 (YYYY-MM-DD)：', today);
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
@@ -366,11 +360,13 @@
             date: d, process: p, prod: 0, cosProc: 0, cosMat: 0, funcProc: 0, funcMat: 0, workers: 0, hrs: 0
         }));
         allData[active] = (allData[active] || []).concat(rows);
-        await save(active);
-        await load(active);
-        render();
-        updChart();
-        showMsg('已添加 ' + d);
+        save(active).then(() => {
+            load(active).then(() => {
+                render();
+                updChart();
+                showMsg('已添加 ' + d);
+            });
+        });
     }
 
     async function clearAll() {
@@ -518,8 +514,10 @@
         }).subscribe();
     }
 
+    // 延迟绑定按钮，确保 DOM 加载完成
     document.getElementById('btnAdd').addEventListener('click', addDay);
     document.getElementById('btnClearAll').addEventListener('click', clearAll);
+
     start();
 })();
 </script>
