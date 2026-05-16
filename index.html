@@ -135,23 +135,28 @@
     </div>
 
 <div class="target-bar">
-    <label>后焊目标：</label><input type="number" id="targetProd_后焊" value="300" min="1" style="width:80px;">
-    <label>组装目标：</label><input type="number" id="targetProd_组装" value="350" min="1" style="width:80px;">
-    <label>包装目标：</label><input type="number" id="targetProd_包装" value="350" min="1" style="width:80px;">
+   <div class="target-bar" id="targetBar">
+    <span id="targetGroup3">
+        <label>后焊目标：</label><input type="number" id="targetProd_后焊" value="300" min="1" style="width:80px;">
+        <label>组装目标：</label><input type="number" id="targetProd_组装" value="350" min="1" style="width:80px;">
+        <label>包装目标：</label><input type="number" id="targetProd_包装" value="350" min="1" style="width:80px;">
+    </span>
+    <span id="targetGroupSingle" style="display:none;">
+        <label>一条龙目标：</label><input type="number" id="targetProd_一条龙" value="500" min="1" style="width:80px;">
+    </span>
     <label>不良率上限(%)：</label><input type="number" id="targetDefect" value="5" min="0" max="100" step="0.1">
-    <span style="font-size:12px; color:#888;">（不达标行标红）</span>
-    <!-- 超链接按钮保持原位置 -->
+    <span style="font-size:12px; color:#888;">不达标行标红</span>
+    <span style="margin-left:12px; display:flex; align-items:center; gap:6px;">
+        <span style="font-size:12px; color:#666;">添加工序模板：</span>
+        <button id="btnTemplate3" class="btn" style="background:var(--blue); color:#fff; padding:6px 14px; font-size:13px;" onclick="setTemplate('3process')">3工序</button>
+        <button id="btnTemplateSingle" class="btn" style="background:#ccc; color:#333; padding:6px 14px; font-size:13px;" onclick="setTemplate('single')">一条龙</button>
+    </span>
     <a href="line_balance.html?user=陈港华" target="_blank" id="taktTimeLink" 
        style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; padding:8px 16px; 
               border-radius:24px; font-size:14px; font-weight:600; background:var(--blue); 
               color:#fff; text-decoration:none;">
         ➤点这看线平衡率
     </a>
-    <span style="margin-left:12px; display:flex; align-items:center; gap:6px;">
-    <span style="font-size:12px; color:#666;">添加工序模板：</span>
-    <button id="btnTemplate3" class="btn" style="background:var(--blue); color:#fff; padding:6px 14px; font-size:13px;" onclick="setTemplate('3process')">3工序</button>
-    <button id="btnTemplateSingle" class="btn" style="background:#ccc; color:#333; padding:6px 14px; font-size:13px;" onclick="setTemplate('single')">一条龙</button>
-</span>
 </div>
 
     <div class="charts-row">
@@ -383,10 +388,10 @@
         tbody.innerHTML = '';
         if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="18">暂无数据</td></tr>'; return; }
 const targetProdMap = {
-    '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500,
     '后焊': parseFloat(document.getElementById('targetProd_后焊')?.value) || 300,
     '组装': parseFloat(document.getElementById('targetProd_组装')?.value) || 350,
-    '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350
+    '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350,
+    '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500
 };
 const targetDefect = parseFloat(document.getElementById('targetDefect').value) || 5;
         const grp = {};
@@ -552,19 +557,26 @@ const defectOk = rate === null || rate <= targetDefect;
         toast('已清除全部数据');
     });
     window.setTemplate = function(template) {
-    currentTemplate = template; 
+    currentTemplate = template;
     const btn3 = document.getElementById('btnTemplate3');
     const btnSingle = document.getElementById('btnTemplateSingle');
+    const group3 = document.getElementById('targetGroup3');
+    const groupSingle = document.getElementById('targetGroupSingle');
+    
     if (template === '3process') {
         btn3.style.background = 'var(--blue)';
         btn3.style.color = '#fff';
         btnSingle.style.background = '#ccc';
         btnSingle.style.color = '#333';
+        group3.style.display = 'inline';
+        groupSingle.style.display = 'none';
     } else {
         btnSingle.style.background = 'var(--blue)';
         btnSingle.style.color = '#fff';
         btn3.style.background = '#ccc';
         btn3.style.color = '#333';
+        group3.style.display = 'none';
+        groupSingle.style.display = 'inline';
     }
 };
     window.switchBoard = async function(board) {
@@ -647,8 +659,9 @@ const defectOk = rate === null || rate <= targetDefect;
                 await loadBoardFromCloud(active);
                 refreshAll();
             }).subscribe();
-['targetProd_后焊', 'targetProd_组装', 'targetProd_包装'].forEach(id => {
-    document.getElementById(id).addEventListener('input', refreshAll);
+['targetProd_后焊', 'targetProd_组装', 'targetProd_包装', 'targetProd_一条龙'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', refreshAll);
 });
 document.getElementById('targetDefect').addEventListener('input', refreshAll);
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
