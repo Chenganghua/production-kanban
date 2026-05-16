@@ -189,6 +189,7 @@
                 <button class="btn" onclick="applyDateFilter()">筛选</button>
                 <button class="btn" onclick="resetDateFilter()">全部</button>
             </div>
+            <div class="chart-box" id="mainChartBox">
             <div class="toggle-panel" id="togglePanel"></div>
             <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
@@ -391,19 +392,20 @@
         buildTogglePanel();
     }
     function buildTogglePanel() {
-        const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
-        const panel = document.getElementById('togglePanel');
-        panel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
-        labels.forEach((l, i) => {
-            panel.innerHTML += `<label><input type="checkbox" checked data-idx="${i}" onchange="toggleLine(this)">${l}</label>`;
-        });
-    }
-    window.toggleLine = function(cb) {
-        if (!mainChart) return;
-        mainChart.setDatasetVisibility(parseInt(cb.dataset.idx), cb.checked);
-        mainChart.update();
-    };
-
+    const labels = ['后焊','组装','包装','总产量','外观不良','功能不良','不良品总数','不良品率','UPPH','总单价'];
+    const panel = document.getElementById('togglePanel');
+    panel.innerHTML = '<span style="font-weight:600; margin-right:8px;">显示线条：</span>';
+    labels.forEach((l, i) => {
+        panel.innerHTML += `<label style="display:inline-flex; align-items:center; gap:0; margin-right:6px;"><input type="checkbox" checked data-idx="${i}" onchange="toggleLine(this)">${l}</label>`;
+    });
+    // 宽度滑块
+    const chartBox = document.getElementById('mainChartBox');
+    panel.innerHTML += `<span style="margin-left:16px; font-weight:600;">图表宽度：</span>
+        <input type="range" id="chartWidthSlider" min="30" max="100" value="${chartWidthPercent}" oninput="setChartWidth(this.value)" style="width:100px; vertical-align:middle;">
+        <span id="chartWidthValue" style="font-size:12px;">${chartWidthPercent}%</span>`;
+    chartBox.style.flex = `0 0 ${chartWidthPercent}%`;
+    chartBox.style.maxWidth = `${chartWidthPercent}%`;
+}
     function renderTable() {
         const filtered = getFilteredRecords();
         const tbody = document.getElementById('tableBody');
