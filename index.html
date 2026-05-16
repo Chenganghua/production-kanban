@@ -167,6 +167,7 @@
                 <button class="btn" onclick="addDay()">添加一天</button>
                 <button class="btn btn-red" id="btnClearAll">删除全部</button>
                 <button class="btn btn-green" onclick="exportPDF()">导出PDF</button>
+                <button class="btn" onclick="exportExcel()" style="background:#34C759; color:#fff;">导出Excel</button>
             </div>
         </div>
         <div class="table-scroll"><table id="dataTable">
@@ -486,6 +487,38 @@
         const element = document.querySelector('.app');
         html2pdf().set({ margin: 5, filename: '生产数据报表.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a3', orientation: 'landscape' } }).from(element).save();
     };
+    window.exportExcel = function() {
+    // 从当前活跃看板提取数据
+    const rows = allData[active] || [];
+    if (rows.length === 0) {
+        toast('当前没有数据可导出');
+        return;
+    }
+    // 构造导出数据（与表格行一致）
+    const data = rows.map(r => ({
+        '日期': r.date,
+        '工序': r.process,
+        '生产数量': r.productionQty,
+        '外观制程不良': r.cosmeticProcess,
+        '外观来料不良': r.cosmeticMaterial,
+        '功能制程不良': r.functionalProcess,
+        '功能来料不良': r.functionalMaterial,
+        '不良品总数': totalDefect(r),
+        '不良品率': defectRate(r.productionQty, totalDefect(r)) != null ? (defectRate(r.productionQty, totalDefect(r))).toFixed(2) + '%' : '-',
+        '人数': r.workers,
+        '当日工时': r.dailyHours,
+        '总工时': (r.workers * r.dailyHours).toFixed(1),
+        '平均小时产能': r.dailyHours > 0 ? (r.productionQty / r.dailyHours).toFixed(2) : '-',
+        'UPPH': upph(r.productionQty, r.workers, r.dailyHours).toFixed(2),
+        '工序单价': upph(r.productionQty, r.workers, r.dailyHours) > 0 ? '¥' + (20 / upph(r.productionQty, r.workers, r.dailyHours)).toFixed(2) : '-',
+        '备注': r.remark || ''
+    }));
+    // 创建工作簿并导出
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "生产数据");
+    XLSX.writeFile(wb, `生产数据_${active}_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
 
     document.getElementById('btnClearAll').addEventListener('click', async function() {
         if (!confirm('确定删除当前数据？')) return;
