@@ -124,7 +124,6 @@
             <span> 平均小时产能 = 生产数量 ÷ 当日工时</span>
             <span> UPPH = 生产数量 ÷ (人数 × 当日工时)</span>
             <span> 工序单价 = 20 ÷ UPPH</span>
-            <span> 线平衡率 = (最小工位时间 ÷ 最大工位时间) × 100%</span>
             <span> 不良品总数 = 外观制程不良 + 外观来料不良 + 功能制程不良 + 功能来料不良</span>
             <span> 不良品率 = 不良品总数 ÷ 生产数量 × 100%</span>
             <span> 总工时 = 人数 × 当日工时</span>
@@ -156,7 +155,7 @@
             <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
         </div>
         <div class="chart-box" style="max-width:400px;">
-            <h3>不良品TOP占比（按工序）</h3>
+            <h3>不良品TOP3占比</h3>
             <div class="chart-wrapper"><canvas id="defectChart"></canvas></div>
         </div>
     </div>
@@ -203,7 +202,7 @@
         dot.className = 'sync-dot';
         if (status === 'syncing') { dot.classList.add('syncing'); txt.textContent = '同步中...'; }
         else if (status === 'connected') { txt.textContent = '已连接'; }
-        else { dot.style.background = '#FF3B30'; txt.textContent = '离线'; }
+        else { dot.style.background = '#FF3B30'; txt.textContent = '离线了'; }
     }
 
     function toast(msg) {
