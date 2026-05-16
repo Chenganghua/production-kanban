@@ -39,7 +39,8 @@
         @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         .header-link{ display:flex; justify-content:flex-end; margin-bottom:6px; }
-        .header-link a{ color:var(--blue); text-decoration:none; font-size:13px; font-weight:500; }
+        .header-link a{ display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; background:var(--blue); color:#fff; text-decoration:none; }
+        .header-link a:hover{ opacity:0.85; }
 
         .target-bar{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; background:var(--card-bg); border-radius:var(--radius-lg); padding:12px 16px; box-shadow:var(--shadow-sm); }
         .target-bar label{ font-size:13px; font-weight:500; }
@@ -66,7 +67,7 @@
         .summary-row td{ background:#fff9e6; font-weight:700; }
         .grand-total-row td{ background:#e8f0fe; font-weight:700; }
         .over-target{ background:#ffe0e0 !important; }
-        .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; display:inline-flex; align-items:center; gap:4px; text-decoration:none; }
+        .btn{ padding:8px 16px; border-radius:24px; font-size:14px; font-weight:600; border:none; cursor:pointer; background:var(--blue); color:#fff; display:inline-flex; align-items:center; gap:4px; }
         .btn-red{ background:var(--red); color:#fff; }
         .btn-green{ background:var(--green); color:#fff; }
         .btn-delete{ background:none; border:none; color:var(--red); cursor:pointer; font-size:18px; padding:2px 6px; border-radius:50%; }
@@ -91,9 +92,9 @@
         </div>
     </div>
 
-    <!-- 超链接按钮样式 -->
+    <!-- 超链接按钮（带动态人员参数） -->
     <div class="header-link">
-        <a href="line_balance.html" target="_blank" class="btn">工序工位节拍数据</a>
+        <a href="line_balance.html?user=陈港华" target="_blank" id="taktTimeLink">工序工位节拍数据</a>
     </div>
 
     <div class="target-bar">
@@ -124,7 +125,7 @@
             <span style="font-weight:700;">每日生产记录</span>
             <div style="display:flex; gap:8px;">
                 <button class="btn" onclick="addDay()">添加一天</button>
-                <button class="btn btn-red" id="btnClearAll" style="gap:0;">删除全部</button>
+                <button class="btn btn-red" id="btnClearAll">删除全部</button>
                 <button class="btn btn-green" onclick="exportPDF()">导出PDF</button>
             </div>
         </div>
@@ -143,15 +144,14 @@
 
 <script>
 (function() {
-    // ---- Supabase 配置 ----
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let active = boards[0];
-    let allData = {};           // { board: [records] }
-    let pendingSave = false;    // 防重入
+    let allData = {};
+    let pendingSave = false;
     let mainChart, defectChart;
     let filterStart = '', filterEnd = '';
 
@@ -172,7 +172,6 @@
         window._tt = setTimeout(() => t.classList.remove('show'), 2000);
     }
 
-    // ---- 云端加载 ----
     async function loadBoardFromCloud(board) {
         setSyncStatus('syncing');
         try {
@@ -183,27 +182,23 @@
                 .order('date', { ascending: true });
             if (error) throw error;
             allData[board] = data ? data.map(r => ({
-                id: r.id,
-                date: r.date,
-                process: r.process,
+                id: r.id, date: r.date, process: r.process,
                 productionQty: r.production_qty || 0,
                 cosmeticProcess: r.cosmetic_process_defect || 0,
                 cosmeticMaterial: r.cosmetic_material_defect || 0,
                 functionalProcess: r.functional_process_defect || 0,
                 functionalMaterial: r.functional_material_defect || 0,
-                workers: r.workers || 0,
-                dailyHours: r.daily_hours || 0,
+                workers: r.workers || 0, dailyHours: r.daily_hours || 0,
                 remark: r.remark || ''
             })) : [];
             setSyncStatus('connected');
         } catch (e) {
-            console.error('加载失败:', e);
+            console.error(e);
             setSyncStatus('error');
             allData[board] = [];
         }
     }
 
-    // ---- 云端保存（防抖） ----
     async function doSave(board) {
         if (pendingSave) return;
         pendingSave = true;
@@ -211,20 +206,15 @@
         try {
             const rows = allData[board] || [];
             const toUpsert = rows.map(r => ({
-                date: r.date,
-                process: r.process,
-                board: board,
+                date: r.date, process: r.process, board: board,
                 production_qty: r.productionQty,
                 cosmetic_process_defect: r.cosmeticProcess,
                 cosmetic_material_defect: r.cosmeticMaterial,
                 functional_process_defect: r.functionalProcess,
                 functional_material_defect: r.functionalMaterial,
-                workers: r.workers,
-                daily_hours: r.dailyHours,
+                workers: r.workers, daily_hours: r.dailyHours,
                 remark: r.remark || ''
             }));
-            // 删除云端不存在的旧记录？（upsert 本身会覆盖，但可能存在多余记录，我们采用先删后插的方式简化）
-            // 为避免遗留孤儿记录，先删除该board所有记录，再批量插入
             await db.from('production_records').delete().eq('board', board);
             if (toUpsert.length > 0) {
                 const { error } = await db.from('production_records').insert(toUpsert);
@@ -232,7 +222,7 @@
             }
             setSyncStatus('connected');
         } catch (e) {
-            console.error('保存失败:', e);
+            console.error(e);
             setSyncStatus('error');
         } finally {
             pendingSave = false;
@@ -245,26 +235,11 @@
         saveTimer = setTimeout(() => doSave(board), 800);
     }
 
-    // ---- 删除云端记录 ----
-    async function deleteRowCloud(date, process, board) {
-        await db.from('production_records').delete().eq('date', date).eq('process', process).eq('board', board);
-    }
-
-    async function deleteDateCloud(date, board) {
-        await db.from('production_records').delete().eq('date', date).eq('board', board);
-    }
-
-    async function clearAllCloud(board) {
-        await db.from('production_records').delete().eq('board', board);
-    }
-
-    // ---- 计算辅助 ----
     function totalDefect(r) { return r.cosmeticProcess + r.cosmeticMaterial + r.functionalProcess + r.functionalMaterial; }
     function upph(p, w, h) { return (w <= 0 || h <= 0 || p <= 0) ? 0 : p / (w * h); }
     function defectRate(p, d) { return p <= 0 ? null : (d / p) * 100; }
     function fmtR(v) { return v === null || isNaN(v) ? '-' : v.toFixed(2) + '%'; }
     function fmtV(v) { return v === null || isNaN(v) || v <= 0 ? '-' : v.toFixed(2); }
-    function fmtPrice(v) { return v === null || isNaN(v) || v <= 0 ? '-' : '¥' + v.toFixed(2); }
 
     function getFilteredRecords() {
         const rows = allData[active] || [];
@@ -276,7 +251,6 @@
         });
     }
 
-    // ---- 不良TOP图表 ----
     function updateDefectChart() {
         const filtered = getFilteredRecords();
         const processMap = {};
@@ -299,7 +273,6 @@
         }
     }
 
-    // ---- 折线图 ----
     function updateMainChart() {
         const filtered = getFilteredRecords();
         const map = {};
@@ -351,7 +324,6 @@
         mainChart.update();
     };
 
-    // ---- 表格渲染 ----
     function renderTable() {
         const filtered = getFilteredRecords();
         const tbody = document.getElementById('tableBody');
@@ -395,7 +367,7 @@
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
                     <td>${prodOk ? '✅' : '❌'}${defectOk ? '✅' : '❌'}</td>
                     <td><input type="text" value="${r.remark || ''}" onchange="updateCell('${d}','${r.process}','remark',this.value)"></td>
-                    <td><button class="btn-delete" onclick="deleteRow('${d}','${r.process}')" title="删除该行">✕</button></td>
+                    <td><button class="btn-delete" onclick="deleteRow('${d}','${r.process}')">✕</button></td>
                 </tr>`;
             });
             const ttd = tcp + tcm + tfp + tfm;
@@ -405,7 +377,7 @@
                 <td>${ttd}</td><td>${fmtR(defectRate(tp, ttd))}</td><td>${tw}</td><td>${th.toFixed(1)}</td><td>${twh.toFixed(1)}</td>
                 <td>${(th>0?tp/th:0).toFixed(2)}</td><td>${fmtV(upph(tp,tw,th))}</td><td>¥${tpr.toFixed(2)}</td>
                 <td></td><td></td>
-                <td><button class="btn-delete" onclick="deleteDate('${d}')" title="删除该天">✕</button></td>
+                <td><button class="btn-delete" onclick="deleteDate('${d}')">✕</button></td>
             </tr>`;
         });
         const all = filtered;
@@ -430,7 +402,6 @@
         tbody.innerHTML = html;
     }
 
-    // ---- 单元格更新（立即保存） ----
     window.updateCell = function(date, process, field, value) {
         const row = (allData[active] || []).find(r => r.date === date && r.process === process);
         if (!row) return;
@@ -439,24 +410,20 @@
         saveToCloud(active);
         refreshAll();
     };
-
-    // ---- 删除操作 ----
     window.deleteRow = async function(date, process) {
         if (!confirm('确定删除该行？')) return;
         allData[active] = (allData[active] || []).filter(r => !(r.date === date && r.process === process));
-        await deleteRowCloud(date, process, active);
+        await db.from('production_records').delete().eq('date', date).eq('process', process).eq('board', active);
         saveToCloud(active);
         refreshAll();
     };
     window.deleteDate = async function(date) {
         if (!confirm(`确定删除 ${date} 所有记录？`)) return;
         allData[active] = (allData[active] || []).filter(r => r.date !== date);
-        await deleteDateCloud(date, active);
+        await db.from('production_records').delete().eq('date', date).eq('board', active);
         saveToCloud(active);
         refreshAll();
     };
-
-    // ---- 添加一天 ----
     window.addDay = async function() {
         const today = new Date().toISOString().split('T')[0];
         const d = prompt('日期 (YYYY-MM-DD)：', today);
@@ -473,41 +440,28 @@
         refreshAll();
         toast('已添加 ' + d);
     };
-
-    // ---- 日期筛选 ----
-    window.applyDateFilter = function() {
-        filterStart = document.getElementById('filterStart').value;
-        filterEnd = document.getElementById('filterEnd').value;
-        refreshAll();
-    };
-    window.resetDateFilter = function() {
-        filterStart = ''; filterEnd = '';
-        document.getElementById('filterStart').value = '';
-        document.getElementById('filterEnd').value = '';
-        refreshAll();
-    };
-
-    // ---- PDF导出 ----
+    window.applyDateFilter = function() { filterStart = document.getElementById('filterStart').value; filterEnd = document.getElementById('filterEnd').value; refreshAll(); };
+    window.resetDateFilter = function() { filterStart = ''; filterEnd = ''; document.getElementById('filterStart').value = ''; document.getElementById('filterEnd').value = ''; refreshAll(); };
     window.exportPDF = function() {
         const element = document.querySelector('.app');
         html2pdf().set({ margin: 5, filename: '生产数据报表.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a3', orientation: 'landscape' } }).from(element).save();
     };
 
-    // ---- 删除全部 ----
     document.getElementById('btnClearAll').addEventListener('click', async function() {
-        if (!confirm('⚠️ 确定删除当前页面的所有数据？此操作不可恢复！')) return;
+        if (!confirm('⚠️ 确定删除当前页面的所有数据？')) return;
         allData[active] = [];
-        await clearAllCloud(active);
+        await db.from('production_records').delete().eq('board', active);
         saveToCloud(active);
         refreshAll();
         toast('已清除全部数据');
     });
 
-    // ---- 标签切换 ----
     window.switchBoard = async function(board) {
         if (board === active) return;
         active = board;
         if (!allData[active]) await loadBoardFromCloud(active);
+        // 更新超链接携带当前人员参数
+        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
         refreshAll();
         renderTabs();
     };
@@ -519,7 +473,6 @@
     window.renameBoard = async function(old) {
         const n = prompt('新名称：', old);
         if (n && n.trim() && n !== old && !boards.includes(n.trim())) {
-            // 云端迁移数据：将旧board的所有记录board字段改为新名称
             const rows = allData[old] || [];
             if (rows.length) {
                 const updated = rows.map(r => ({ ...r, board: n }));
@@ -538,6 +491,7 @@
             delete allData[old];
             boards = boards.map(b => b === old ? n.trim() : b);
             if (active === old) active = n.trim();
+            document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
             renderTabs();
             refreshAll();
         }
@@ -547,7 +501,8 @@
         await db.from('production_records').delete().eq('board', board);
         boards = boards.filter(b => b !== board);
         delete allData[board];
-        if (active === board) active = boards[0];
+        if (active === board) { active = boards[0]; if (!allData[active]) await loadBoardFromCloud(active); }
+        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
     };
@@ -558,6 +513,7 @@
         active = n.trim();
         allData[active] = [];
         await doSave(active);
+        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
     };
@@ -568,30 +524,22 @@
         updateDefectChart();
     }
 
-    // ---- 初始化 ----
     async function init() {
-        for (const b of boards) {
-            await loadBoardFromCloud(b);
-        }
+        for (const b of boards) { await loadBoardFromCloud(b); }
         active = boards[0];
+        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
         setSyncStatus('connected');
-
-        // 实时订阅
         db.channel('public:production_records')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async (payload) => {
                 if (pendingSave) return;
-                // 简单重新加载当前board数据
                 await loadBoardFromCloud(active);
                 refreshAll();
-            })
-            .subscribe();
-
+            }).subscribe();
         document.getElementById('targetProd').addEventListener('input', refreshAll);
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
     }
-
     init();
 })();
 </script>
