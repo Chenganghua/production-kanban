@@ -122,6 +122,17 @@
     let dirty = false;
 
     window.addEventListener('DOMContentLoaded', function() {
+const taktLink = document.getElementById('taktTimeLink');
+taktLink.href = 'line_balance.html?user=' + encodeURIComponent(active);
+
+document.getElementById('tabsBar').addEventListener('click', function(e) {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    const user = tab.dataset.u;
+    if (user) {
+        taktLink.href = 'line_balance.html?user=' + encodeURIComponent(user);
+    }
+});
         const tabsBar = document.getElementById('tabsBar');
         const tbody = document.getElementById('tableBody');
         const toast = document.getElementById('toast');
