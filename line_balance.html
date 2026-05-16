@@ -90,8 +90,11 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // 从 URL 参数读取当前用户，默认为陈港华
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentUser = urlParams.get('user') || '陈港华';
+
     const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
-    const BOARD_NAME = '线平衡';
     let lineData = [];
     let contextTarget = null;
     let pendingSave = false;
@@ -113,7 +116,7 @@
             const { data, error } = await db
                 .from('line_balance')
                 .select('*')
-                .eq('board', BOARD_NAME)
+                .eq('board', currentUser)
                 .maybeSingle();
             if (error) throw error;
             if (data) {
@@ -141,7 +144,7 @@
             const { error } = await db
                 .from('line_balance')
                 .upsert({
-                    board: BOARD_NAME,
+                    board: currentUser,
                     product_name: productNameInput.value,
                     data: lineData,
                     updated_at: new Date()
@@ -294,6 +297,7 @@
         renderAll();
     }
 
+    // 高清甘特图，文字不重叠
     function updateGantt() {
         const ctx = canvas.getContext('2d');
         const container = canvas.parentElement;
@@ -309,8 +313,11 @@
 
         if (lineData.length === 0) return;
 
-        const barHeight = Math.min(40, (container.clientHeight - 60) / lineData.length);
+        const barHeight = Math.min(36, (container.clientHeight - 60) / lineData.length);
         const startY = 30;
+        const leftMargin = 100; // 左侧留给作业员名称的宽度
+        const barStartX = leftMargin + 10;
+        const barMaxWidth = container.clientWidth - barStartX - 20;
         const colors = ['#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
         let maxTime = 0;
         lineData.forEach(w => {
@@ -321,24 +328,31 @@
 
         lineData.forEach((w, i) => {
             let left = 0;
-            const y = startY + i * (barHeight + 10);
+            const y = startY + i * (barHeight + 12);
             const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
+            // 瓶颈高亮
             if (total === maxTime) {
                 ctx.fillStyle = 'rgba(255,59,48,0.3)';
-                ctx.fillRect(0, y - 2, container.clientWidth - 40, barHeight + 4);
+                ctx.fillRect(barStartX, y - 2, barMaxWidth, barHeight + 4);
             }
+            // 绘制每个子工序条形
             w.子工序.forEach((s, j) => {
-                const width = (s.time / maxTime) * (container.clientWidth - 150);
+                const width = (s.time / maxTime) * barMaxWidth;
                 ctx.fillStyle = colors[j % colors.length];
-                ctx.fillRect(50 + left, y, width, barHeight);
+                ctx.fillRect(barStartX + left, y, width, barHeight);
+                // 子工序名称在条形内部居中
                 ctx.fillStyle = '#ffffff';
-                ctx.font = `bold ${Math.max(11, barHeight * 0.35)}px sans-serif`;
-                ctx.fillText(s.name, 55 + left, y + barHeight / 2 + 5);
+                ctx.font = `bold ${Math.max(10, barHeight * 0.35)}px sans-serif`;
+                const textWidth = ctx.measureText(s.name).width;
+                if (textWidth < width - 4) {
+                    ctx.fillText(s.name, barStartX + left + 4, y + barHeight / 2 + 4);
+                }
                 left += width;
             });
+            // 作业员名称在左侧独立区域
             ctx.fillStyle = '#000';
             ctx.font = `bold ${Math.max(12, barHeight * 0.4)}px sans-serif`;
-            ctx.fillText(w.作业员, 5, y + barHeight / 2 + 5);
+            ctx.fillText(w.作业员, 5, y + barHeight / 2 + 4);
         });
     }
 
@@ -383,7 +397,10 @@
             w.子工序.forEach(s => { row[s.name] = s.time; });
             return row;
         });
-        XLSX.writeFile(XLSX.utils.book_new(XLSX.utils.json_to_sheet(data)), "线平衡数据.xlsx");
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        XLSX.writeFile(wb, "线平衡数据.xlsx");
     }
 
     function clearData() {
@@ -420,7 +437,7 @@
             if (lineData.length === 0) { initDefaultData(); renderAll(); await saveToCloud(); }
             setSync('connected');
             db.channel('line_balance_changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'line_balance', filter: `board=eq.${BOARD_NAME}` }, async () => {
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'line_balance', filter: `board=eq.${currentUser}` }, async () => {
                     if (pendingSave) return;
                     await loadFromCloud();
                     renderAll();
