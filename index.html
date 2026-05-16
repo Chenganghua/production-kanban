@@ -116,8 +116,8 @@
         </div>
     </div>
 
-    <div class="marquee-container">
-        <div class="marquee-content" id="marqueeContent">
+   <div class="marquee-container" onmouseenter="document.querySelector('.marquee-content').style.animationPlayState='paused'" onmouseleave="document.querySelector('.marquee-content').style.animationPlayState='running'">
+    <div class="marquee-content" id="marqueeContent">
             <span> 不良品总数 = 外观制程不良 + 外观来料不良 + 功能制程不良 + 功能来料不良</span>
             <span> 不良品率 = 不良品总数 ÷ 生产数量 × 100%</span>
             <span> 总工时 = 人数 × 当日工时</span>
