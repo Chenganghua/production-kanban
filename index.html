@@ -217,30 +217,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let boardTitles = {}; 
-
-const boardTitleEl = document.querySelector('.board-title');
-boardTitleEl.addEventListener('input', function() {
-    boardTitles[active] = boardTitleEl.textContent;
-});
-
-window.switchBoard = async function(board) {
-    if (board === active) return;
-    const boardTitleEl = document.querySelector('.board-title');
-    if (boardTitleEl) boardTitles[active] = boardTitleEl.textContent;
-    
-    active = board;
-    if (!allData[active]) await loadBoardFromCloud(active);
-    
-    if (boardTitleEl) boardTitleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
-    
-    document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
-    refreshAll();
-    renderTabs();
-};
-}
-};
-};
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
@@ -250,7 +226,7 @@ window.switchBoard = async function(board) {
     let currentTemplate = '3process';
     let active = boards[0];
     let allData = {};
-    let boardTitles = {}; 
+    let boardTitles = {}; // 存储每个人员自定义的标题
     let pendingSave = false;
     let mainChart, defectChart;
     let filterStart = '', filterEnd = '';
@@ -640,8 +616,11 @@ window.switchBoard = async function(board) {
 
     window.switchBoard = async function(board) {
         if (board === active) return;
+        const titleEl = document.querySelector('.board-title');
+        if (titleEl) boardTitles[active] = titleEl.textContent;
         active = board;
         if (!allData[active]) await loadBoardFromCloud(active);
+        if (titleEl) titleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
         refreshAll();
         renderTabs();
@@ -723,6 +702,13 @@ window.switchBoard = async function(board) {
             if (el) el.addEventListener('input', refreshAll);
         });
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
+
+        const boardTitleElement = document.querySelector('.board-title');
+        if (boardTitleElement) {
+            boardTitleElement.addEventListener('input', function() {
+                boardTitles[active] = boardTitleElement.textContent;
+            });
+        }
     }
     init();
 })();
