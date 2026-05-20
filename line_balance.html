@@ -259,33 +259,26 @@
             header.appendChild(workerInput);
 
             const modeSwitch = document.createElement('div');
-            modeSwitch.className = 'mode-switch';
-            const totalBtn = document.createElement('button');
-            const modeSwitch = document.createElement('div');
 modeSwitch.className = 'mode-switch';
+// 添加“测量方式”文字
 const modeLabel = document.createElement('span');
-modeLabel.textContent = '选测量时间方式';
+modeLabel.textContent = '测量方式';
 modeLabel.style.fontSize = '12px';
 modeLabel.style.color = '#666';
 modeLabel.style.marginRight = '4px';
 modeSwitch.appendChild(modeLabel);
+// 按钮
 const totalBtn = document.createElement('button');
-            totalBtn.textContent = '按总时间';
-            totalBtn.className = worker.isTotalMode ? 'active' : '';
-            const subBtn = document.createElement('button');
-            subBtn.textContent = '按子工序';
-            subBtn.className = !worker.isTotalMode ? 'active' : '';
-            totalBtn.onclick = () => {
-                worker.isTotalMode = true;
-                renderAll();
-            };
-            subBtn.onclick = () => {
-                worker.isTotalMode = false;
-                renderAll();
-            };
-            modeSwitch.appendChild(totalBtn);
-            modeSwitch.appendChild(subBtn);
-            header.appendChild(modeSwitch);
+totalBtn.textContent = '总时间';
+totalBtn.className = worker.isTotalMode ? 'active' : '';
+const subBtn = document.createElement('button');
+subBtn.textContent = '子工序';
+subBtn.className = !worker.isTotalMode ? 'active' : '';
+totalBtn.onclick = () => { worker.isTotalMode = true; renderAll(); };
+subBtn.onclick = () => { worker.isTotalMode = false; renderAll(); };
+modeSwitch.appendChild(totalBtn);
+modeSwitch.appendChild(subBtn);
+header.appendChild(modeSwitch);
             group.appendChild(header);
 
             if (worker.isTotalMode) {
