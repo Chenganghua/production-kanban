@@ -260,14 +260,12 @@
 
             const modeSwitch = document.createElement('div');
 modeSwitch.className = 'mode-switch';
-// 添加“测量方式”文字
 const modeLabel = document.createElement('span');
 modeLabel.textContent = '测量方式';
 modeLabel.style.fontSize = '12px';
 modeLabel.style.color = '#666';
 modeLabel.style.marginRight = '4px';
 modeSwitch.appendChild(modeLabel);
-// 按钮
 const totalBtn = document.createElement('button');
 totalBtn.textContent = '总时间';
 totalBtn.className = worker.isTotalMode ? 'active' : '';
@@ -462,7 +460,6 @@ header.appendChild(modeSwitch);
                 ctx.fillRect(barStartX + left, y, width, barHeight);
                 ctx.fillStyle = '#ffffff';
                 ctx.font = `bold ${Math.max(10, barHeight * 0.35)}px sans-serif`;
-                ctx.fillText('大工序', barStartX + left + 4, y + barHeight / 2 + 4);
             } else {
                 w.子工序.forEach((s, j) => {
                     const width = (s.avgTime / maxTime) * barMaxWidth;
