@@ -217,6 +217,23 @@
 <div class="toast" id="toast"></div>
 
 <script>
+let boardTitles = {}; 
+
+const boardTitleEl = document.querySelector('.board-title');
+boardTitleEl.addEventListener('input', function() {
+    boardTitles[active] = boardTitleEl.textContent;
+});
+
+window.switchBoard = async function(board) {
+    if (board === active) return;
+    boardTitles[active] = boardTitleEl.textContent;
+    active = board;
+    if (!allData[active]) await loadBoardFromCloud(active);
+    boardTitleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
+    document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
+    refreshAll();
+    renderTabs();
+};
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
