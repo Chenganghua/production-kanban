@@ -226,22 +226,18 @@ boardTitleEl.addEventListener('input', function() {
 
 window.switchBoard = async function(board) {
     if (board === active) return;
-    const titleEl = document.querySelector('.board-title');
-    if (titleEl) boardTitles[active] = titleEl.textContent;
+    const boardTitleEl = document.querySelector('.board-title');
+    if (boardTitleEl) boardTitles[active] = boardTitleEl.textContent;
     
     active = board;
     if (!allData[active]) await loadBoardFromCloud(active);
     
-    if (titleEl) titleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
+    if (boardTitleEl) boardTitleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
     
     document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
     refreshAll();
     renderTabs();
-const titleEl = document.querySelector('.board-title');
-if (titleEl) {
-    titleEl.addEventListener('input', function() {
-        boardTitles[active] = titleEl.textContent;
-    });
+};
 }
 };
 };
