@@ -225,6 +225,9 @@
     let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let currentTemplate = '3process';
     let active = boards[0];
+    active = boards[0];
+const titleEl = document.querySelector('.board-title');
+if (titleEl) titleEl.textContent = loadTitle(active);
     let allData = {};
     let boardTitles = {}; 
 function saveTitle(board, title) {
@@ -627,17 +630,20 @@ function loadTitle(board) {
         }
     };
 
-    window.switchBoard = async function(board) {
-        if (board === active) return;
-        const titleEl = document.querySelector('.board-title');
-        if (titleEl) boardTitles[active] = titleEl.textContent;
-        active = board;
-        if (!allData[active]) await loadBoardFromCloud(active);
-        if (titleEl) titleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
-        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
-        refreshAll();
-        renderTabs();
-    };
+window.switchBoard = async function(board) {
+    if (board === active) return;
+    const titleEl = document.querySelector('.board-title');
+    if (titleEl) saveTitle(active, titleEl.textContent);
+    
+    active = board;
+    if (!allData[active]) await loadBoardFromCloud(active);
+    
+    if (titleEl) titleEl.textContent = loadTitle(active);
+    
+    document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
+    refreshAll();
+    renderTabs();
+};
 
     function renderTabs() {
         const tabsBar = document.getElementById('tabsBar');
@@ -674,7 +680,7 @@ function loadTitle(board) {
         await db.from('production_records').delete().eq('board', board);
         boards = boards.filter(b => b !== board);
         delete allData[board];
-        if (active === board) { active = boards[0]; if (!allData[active]) await loadBoardFromCloud(active); }
+        if (active === board) { ; if (!allData[active]) await loadBoardFromCloud(active); }
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
@@ -699,7 +705,7 @@ function loadTitle(board) {
 
     async function init() {
         for (const b of boards) { await loadBoardFromCloud(b); }
-        active = boards[0];
+        ;
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
@@ -716,12 +722,12 @@ function loadTitle(board) {
         });
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
 
-        const boardTitleElement = document.querySelector('.board-title');
-        if (boardTitleElement) {
-            boardTitleElement.addEventListener('input', function() {
-                boardTitles[active] = boardTitleElement.textContent;
-            });
-        }
+const boardTitleElement = document.querySelector('.board-title');
+if (boardTitleElement) {
+    boardTitleElement.addEventListener('input', function() {
+        saveTitle(active, boardTitleElement.textContent); 
+    });
+}
     }
     init();
 })();
