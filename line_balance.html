@@ -8,6 +8,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
+        .gantt-info strong {
+    color: var(--blue);
+}
         :root {
             --bg: #f5f5f5; --card-bg: #ffffff; --border: #dcdcdc;
             --blue: #007aff; --red: #ff3b30; --text: #000000;
@@ -71,6 +74,13 @@
     <div class="main-content">
         <div class="left-panel" id="leftPanel" oncontextmenu="return false;"></div>
         <div class="right-panel">
+            <div class="gantt-info" style="display:flex; gap:20px; margin-bottom:8px; font-size:14px; font-weight:500;">
+    <span>人数：<strong id="workerCount">0</strong></span>
+    <span>瓶颈时间：<strong id="bottleneckTime">0s</strong></span>
+</div>
+<div class="gantt-container">
+    <canvas id="ganttCanvas"></canvas>
+</div>
             <div class="gantt-container">
                 <canvas id="ganttCanvas"></canvas>
             </div>
@@ -473,6 +483,8 @@ header.appendChild(modeSwitch);
                     }
                     left += width;
                 });
+document.getElementById('workerCount').textContent = lineData.length;
+document.getElementById('bottleneckTime').textContent = maxTime.toFixed(1) + 's';
             }
             const totalText = total.toFixed(1) + 's';
             ctx.fillStyle = '#000';
@@ -485,7 +497,8 @@ header.appendChild(modeSwitch);
     }
 
     function updateBalance() {
-        if (lineData.length === 0) { balanceLabel.textContent = '线平衡率：0%'; return; }
+        if (lineData.length === 0) { balanceLabel.textContent = '线平衡率：0%'; document.getElementById('workerCount').textContent = '0';
+document.getElementById('bottleneckTime').textContent = '0s';return; }
         const times = lineData.map(w => getWorkerTotal(w));
         const balance = Math.round((Math.min(...times) / Math.max(...times)) * 100);
         balanceLabel.textContent = `线平衡率：${balance}%`;
