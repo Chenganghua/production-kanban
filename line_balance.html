@@ -258,14 +258,6 @@
             workerInput.oninput = (e) => { worker.作业员 = e.target.value; updateGantt(); saveToCloud(); };
             header.appendChild(workerInput);
 
-            const mainLabel = document.createElement('span');
-            mainLabel.textContent = '大工序：';
-            const mainInput = document.createElement('input');
-            mainInput.value = worker.大工序;
-            mainInput.oninput = (e) => { worker.大工序 = e.target.value; saveToCloud(); };
-            header.appendChild(mainLabel);
-            header.appendChild(mainInput);
-
             const modeSwitch = document.createElement('div');
             modeSwitch.className = 'mode-switch';
             const totalBtn = document.createElement('button');
