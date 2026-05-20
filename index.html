@@ -220,7 +220,15 @@
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        storage: {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+        }
+    }
+});
 
     let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let currentTemplate = '3process';
