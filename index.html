@@ -227,6 +227,19 @@
     let active = boards[0];
     let allData = {};
     let boardTitles = {}; 
+function saveTitle(board, title) {
+    const key = 'board_title_' + board;
+    if (title && title !== '生产数据看板-可编辑') {
+        localStorage.setItem(key, title);
+    } else {
+        localStorage.removeItem(key); 
+    }
+}
+
+function loadTitle(board) {
+    const key = 'board_title_' + board;
+    return localStorage.getItem(key) || '生产数据看板-可编辑';
+}
     let pendingSave = false;
     let mainChart, defectChart;
     let filterStart = '', filterEnd = '';
