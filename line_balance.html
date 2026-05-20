@@ -30,9 +30,13 @@
         .worker-group { border:1px solid #e0e0e0; border-radius:6px; padding:8px; margin-bottom:8px; background:#fafafa; }
         .worker-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
         .worker-header input { border:1px solid #ccc; border-radius:4px; padding:4px 8px; font-size:14px; width:150px; }
-        .subtask-row { display:flex; align-items:center; gap:6px; margin-left:24px; margin-bottom:3px; }
-        .subtask-row input { border:1px solid #ccc; border-radius:4px; padding:3px 6px; font-size:13px; width:120px; }
-        .subtask-row input.time { width:70px; }
+        .subtask-row { margin-left:24px; margin-bottom:4px; }
+        .subtask-main { display:flex; align-items:center; gap:6px; }
+        .subtask-main input { border:1px solid #ccc; border-radius:4px; padding:3px 6px; font-size:13px; width:120px; }
+        .subtask-avg { font-weight:600; margin-left:8px; min-width:70px; }
+        .measurements { margin-left:32px; margin-top:2px; }
+        .measure-row { display:flex; align-items:center; gap:4px; margin-bottom:2px; }
+        .measure-row input { width:70px; padding:2px 4px; font-size:12px; text-align:center; border:1px solid #ddd; border-radius:4px; }
         .btn { padding:6px 14px; border:none; border-radius:6px; font-size:14px; cursor:pointer; color:#fff; background:var(--blue); text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
         .btn.red { background:var(--red); }
         .btn:hover { opacity:0.85; }
@@ -72,7 +76,7 @@
             <button class="btn" id="btnAddWorker">增加作业员</button>
             <button class="btn" id="btnImportExcel">导入Excel</button>
             <button class="btn" id="btnExportExcel">导出Excel</button>
-            <a class="btn" href="线平衡导入模板.xlsx" download id="btnDownloadTemplate">下载导入模板</a>
+            <a class="btn" href="线平衡导入模板.xlsx" download>下载导入模板</a>
             <button class="btn red" id="btnClearData">清空数据</button>
         </div>
         <div style="font-size:14px; color:#666;">制作人：陈港华</div>
@@ -89,7 +93,9 @@
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } }
+    });
 
     const urlParams = new URLSearchParams(window.location.search);
     const currentUser = urlParams.get('user') || '陈港华';
@@ -98,7 +104,7 @@
     let lineData = [];
     let contextTarget = null;
     let pendingSave = false;
-    let saveTimer = null; 
+    let saveTimer = null;
 
     let productNameInput, syncDot, syncText, balanceLabel, leftPanel, canvas, contextMenu;
 
@@ -150,6 +156,18 @@
             if (data) {
                 productNameInput.value = data.product_name || '';
                 lineData = data.data || [];
+                // 兼容旧数据：如果子工序没有times字段则转换
+                lineData.forEach(worker => {
+                    worker.子工序 = worker.子工序.map(sub => {
+                        if (!sub.times) {
+                            sub.times = [sub.time || 5];
+                            sub.avgTime = average(sub.times);
+                        } else {
+                            sub.avgTime = average(sub.times);
+                        }
+                        return sub;
+                    });
+                });
             } else {
                 productNameInput.value = '';
                 lineData = [];
@@ -161,7 +179,12 @@
             setSync('error');
             if (lineData.length === 0) initDefaultData();
         }
-        renderAll(false); 
+        renderAll(false);
+    }
+
+    function average(arr) {
+        if (!arr.length) return 0;
+        return arr.reduce((s, v) => s + parseFloat(v) || 0, 0) / arr.length;
     }
 
     function initDefaultData() {
@@ -169,9 +192,11 @@
         for (let i = 0; i < 2; i++) {
             const subList = [];
             for (let j = 0; j < 3; j++) {
+                const times = [Math.floor(Math.random() * 8) + 5];
                 subList.push({
                     name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
-                    time: Math.floor(Math.random() * 8) + 5
+                    times: times,
+                    avgTime: average(times)
                 });
             }
             lineData.push({
@@ -193,9 +218,11 @@
         const name = `作业员${lineData.length + 1}`;
         const subList = [];
         for (let i = 0; i < 3; i++) {
+            const times = [Math.floor(Math.random() * 8) + 5];
             subList.push({
                 name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
-                time: Math.floor(Math.random() * 8) + 5
+                times: times,
+                avgTime: average(times)
             });
         }
         lineData.push({ 作业员: name, 大工序: "新大工序", 子工序: subList });
@@ -226,33 +253,85 @@
             group.appendChild(header);
 
             worker.子工序.forEach((sub, sIdx) => {
-                const row = document.createElement('div');
-                row.className = 'subtask-row';
-                row.dataset.workerIdx = wIdx;
-                row.dataset.subIdx = sIdx;
+                const subRow = document.createElement('div');
+                subRow.className = 'subtask-row';
+                subRow.dataset.workerIdx = wIdx;
+                subRow.dataset.subIdx = sIdx;
+
+                const mainLine = document.createElement('div');
+                mainLine.className = 'subtask-main';
                 const nameInput = document.createElement('input');
                 nameInput.value = sub.name;
                 nameInput.oninput = (e) => { sub.name = e.target.value; updateGantt(); saveToCloud(); };
-                const timeInput = document.createElement('input');
-                timeInput.type = 'number';
-                timeInput.className = 'time';
-                timeInput.value = sub.time;
-                timeInput.oninput = (e) => { sub.time = parseFloat(e.target.value)||0; updateGantt(); updateBalance(); saveToCloud(); };
+                const avgDisplay = document.createElement('span');
+                avgDisplay.className = 'subtask-avg';
+                avgDisplay.textContent = `均 ${sub.avgTime.toFixed(1)}s`;
+                const addMeasureBtn = document.createElement('button');
+                addMeasureBtn.textContent = '+测量';
+                addMeasureBtn.className = 'btn';
+                addMeasureBtn.style.padding = '2px 8px';
+                addMeasureBtn.onclick = () => {
+                    if (!sub.times) sub.times = [];
+                    sub.times.push(0);
+                    sub.avgTime = average(sub.times);
+                    renderAll();
+                };
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn-delete';
                 delBtn.textContent = '✕';
                 delBtn.onclick = () => { worker.子工序.splice(sIdx, 1); renderAll(); };
-                row.appendChild(nameInput);
-                row.appendChild(timeInput);
-                row.appendChild(delBtn);
-                group.appendChild(row);
+
+                mainLine.appendChild(nameInput);
+                mainLine.appendChild(avgDisplay);
+                mainLine.appendChild(addMeasureBtn);
+                mainLine.appendChild(delBtn);
+                subRow.appendChild(mainLine);
+
+                const measurements = document.createElement('div');
+                measurements.className = 'measurements';
+                sub.times.forEach((time, mIdx) => {
+                    const measRow = document.createElement('div');
+                    measRow.className = 'measure-row';
+                    const timeInput = document.createElement('input');
+                    timeInput.type = 'number';
+                    timeInput.value = time;
+                    timeInput.oninput = (e) => {
+                        sub.times[mIdx] = parseFloat(e.target.value) || 0;
+                        sub.avgTime = average(sub.times);
+                        renderAll();
+                    };
+                    const delMeasBtn = document.createElement('button');
+                    delMeasBtn.textContent = '×';
+                    delMeasBtn.style.border = 'none';
+                    delMeasBtn.style.background = 'none';
+                    delMeasBtn.style.color = 'red';
+                    delMeasBtn.style.cursor = 'pointer';
+                    delMeasBtn.onclick = () => {
+                        sub.times.splice(mIdx, 1);
+                        if (sub.times.length === 0) sub.times = [0];
+                        sub.avgTime = average(sub.times);
+                        renderAll();
+                    };
+                    measRow.appendChild(timeInput);
+                    measRow.appendChild(delMeasBtn);
+                    measurements.appendChild(measRow);
+                });
+                subRow.appendChild(measurements);
+                group.appendChild(subRow);
             });
 
             const addBtn = document.createElement('button');
             addBtn.textContent = '+ 添加子工序';
             addBtn.className = 'btn';
             addBtn.style.marginLeft = '24px';
-            addBtn.onclick = () => { worker.子工序.push({ name: DEFAULT_SUBTASKS[0], time: 5 }); renderAll(); };
+            addBtn.onclick = () => {
+                worker.子工序.push({
+                    name: DEFAULT_SUBTASKS[0],
+                    times: [5],
+                    avgTime: 5
+                });
+                renderAll();
+            };
             group.appendChild(addBtn);
 
             leftPanel.appendChild(group);
@@ -268,7 +347,9 @@
         document.querySelectorAll('.subtask-row').forEach(row => {
             row.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
-                contextTarget = { type: 'subtask', wIdx: parseInt(row.dataset.workerIdx), sIdx: parseInt(row.dataset.subIdx) };
+                const wIdx = parseInt(row.dataset.workerIdx);
+                const sIdx = parseInt(row.dataset.subIdx);
+                contextTarget = { type: 'subtask', wIdx, sIdx };
                 showContextMenu(e.pageX, e.pageY);
             });
         });
@@ -292,7 +373,12 @@
     }
     function addSubTask() {
         if (!contextTarget || contextTarget.type !== 'subtask') return;
-        lineData[contextTarget.wIdx].子工序.push({ name: DEFAULT_SUBTASKS[0], time: 5 });
+        const worker = lineData[contextTarget.wIdx];
+        worker.子工序.push({
+            name: DEFAULT_SUBTASKS[0],
+            times: [5],
+            avgTime: 5
+        });
         renderAll();
     }
     function deleteItem() {
@@ -306,26 +392,24 @@
         const ctx = canvas.getContext('2d');
         const container = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
-
         canvas.width = container.clientWidth * dpr;
         canvas.height = container.clientHeight * dpr;
         canvas.style.width = container.clientWidth + 'px';
         canvas.style.height = container.clientHeight + 'px';
-
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
-
         if (lineData.length === 0) return;
 
         const barHeight = Math.min(36, (container.clientHeight - 60) / lineData.length);
         const startY = 30;
         const leftMargin = 100;
         const barStartX = leftMargin + 10;
-        const barMaxWidth = container.clientWidth - barStartX - 20;
+        const timeTextWidth = 60;
+        const barMaxWidth = container.clientWidth - barStartX - timeTextWidth - 10;
         const colors = ['#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
         let maxTime = 0;
         lineData.forEach(w => {
-            const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
+            const total = w.子工序.reduce((sum, s) => sum + s.avgTime, 0);
             if (total > maxTime) maxTime = total;
         });
         if (maxTime === 0) return;
@@ -333,13 +417,13 @@
         lineData.forEach((w, i) => {
             let left = 0;
             const y = startY + i * (barHeight + 12);
-            const total = w.子工序.reduce((sum, s) => sum + s.time, 0);
+            const total = w.子工序.reduce((sum, s) => sum + s.avgTime, 0);
             if (total === maxTime) {
                 ctx.fillStyle = 'rgba(255,59,48,0.3)';
                 ctx.fillRect(barStartX, y - 2, barMaxWidth, barHeight + 4);
             }
             w.子工序.forEach((s, j) => {
-                const width = (s.time / maxTime) * barMaxWidth;
+                const width = (s.avgTime / maxTime) * barMaxWidth;
                 ctx.fillStyle = colors[j % colors.length];
                 ctx.fillRect(barStartX + left, y, width, barHeight);
                 ctx.fillStyle = '#ffffff';
@@ -350,8 +434,12 @@
                 }
                 left += width;
             });
+            const totalText = total.toFixed(1) + 's';
             ctx.fillStyle = '#000';
-            ctx.font = `bold ${Math.max(12, barHeight * 0.4)}px sans-serif`;
+            ctx.font = `bold ${Math.max(10, barHeight * 0.4)}px sans-serif`;
+            ctx.fillText(totalText, barStartX + left + 4, y + barHeight / 2 + 4);
+            ctx.fillStyle = '#000';
+            ctx.font = `bold ${Math.max(12, barHeight * 0.45)}px sans-serif`;
             ctx.fillText(w.作业员, 5, y + barHeight / 2 + 4);
         });
     }
@@ -361,8 +449,10 @@
             balanceLabel.textContent = '线平衡率：0%';
             return;
         }
-        const times = lineData.map(w => w.子工序.reduce((sum, s) => sum + s.time, 0));
-        const balance = Math.round((Math.min(...times) / Math.max(...times)) * 100);
+        const times = lineData.map(w => w.子工序.reduce((sum, s) => sum + s.avgTime, 0));
+        const minTime = Math.min(...times);
+        const maxTime = Math.max(...times);
+        const balance = Math.round((minTime / maxTime) * 100);
         balanceLabel.textContent = `线平衡率：${balance}%`;
     }
 
@@ -391,7 +481,13 @@
                         if (!map.has(key)) {
                             map.set(key, { 作业员: worker, 大工序: main, 子工序: [] });
                         }
-                        map.get(key).子工序.push({ name: subName, time });
+                        const existing = map.get(key).子工序.find(s => s.name === subName);
+                        if (existing) {
+                            existing.times.push(time);
+                            existing.avgTime = average(existing.times);
+                        } else {
+                            map.get(key).子工序.push({ name: subName, times: [time], avgTime: time });
+                        }
                     });
                     lineData = Array.from(map.values());
                 } else {
@@ -400,7 +496,8 @@
                         const subList = [];
                         Object.keys(row).forEach(col => {
                             if (col !== '作业员' && col !== '大工序') {
-                                subList.push({ name: col, time: parseFloat(row[col]) || 0 });
+                                const val = parseFloat(row[col]) || 0;
+                                subList.push({ name: col, times: [val], avgTime: val });
                             }
                         });
                         lineData.push({
@@ -421,11 +518,13 @@
         const data = [];
         lineData.forEach(w => {
             w.子工序.forEach(s => {
+                // 导出每个测量值作为单独一行，或者导出平均值；这里采用导出平均值
                 data.push({
                     作业员: w.作业员,
                     大工序: w.大工序,
                     子工序: s.name,
-                    时间: s.time
+                    平均时间: s.avgTime.toFixed(1),
+                    测量值: s.times.join(',')
                 });
             });
         });
@@ -457,7 +556,6 @@
         document.getElementById('menuAddMain').addEventListener('click', addMainProcess);
         document.getElementById('menuAddSub').addEventListener('click', addSubTask);
         document.getElementById('menuDelete').addEventListener('click', deleteItem);
-
         productNameInput.addEventListener('input', () => saveToCloud());
 
         (async () => {
