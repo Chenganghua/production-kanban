@@ -261,10 +261,19 @@
             const modeSwitch = document.createElement('div');
             modeSwitch.className = 'mode-switch';
             const totalBtn = document.createElement('button');
-            totalBtn.textContent = '总时间';
+            const modeSwitch = document.createElement('div');
+modeSwitch.className = 'mode-switch';
+const modeLabel = document.createElement('span');
+modeLabel.textContent = '选测量时间方式';
+modeLabel.style.fontSize = '12px';
+modeLabel.style.color = '#666';
+modeLabel.style.marginRight = '4px';
+modeSwitch.appendChild(modeLabel);
+const totalBtn = document.createElement('button');
+            totalBtn.textContent = '按总时间';
             totalBtn.className = worker.isTotalMode ? 'active' : '';
             const subBtn = document.createElement('button');
-            subBtn.textContent = '子工序';
+            subBtn.textContent = '按子工序';
             subBtn.className = !worker.isTotalMode ? 'active' : '';
             totalBtn.onclick = () => {
                 worker.isTotalMode = true;
