@@ -226,13 +226,24 @@ boardTitleEl.addEventListener('input', function() {
 
 window.switchBoard = async function(board) {
     if (board === active) return;
-    boardTitles[active] = boardTitleEl.textContent;
+    const titleEl = document.querySelector('.board-title');
+    if (titleEl) boardTitles[active] = titleEl.textContent;
+    
     active = board;
     if (!allData[active]) await loadBoardFromCloud(active);
-    boardTitleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
+    
+    if (titleEl) titleEl.textContent = boardTitles[active] || '生产数据看板-可编辑';
+    
     document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
     refreshAll();
     renderTabs();
+const titleEl = document.querySelector('.board-title');
+if (titleEl) {
+    titleEl.addEventListener('input', function() {
+        boardTitles[active] = titleEl.textContent;
+    });
+}
+};
 };
 (function() {
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
