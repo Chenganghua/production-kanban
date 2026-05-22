@@ -36,8 +36,7 @@
         .mode-switch button { padding:4px 10px; border-radius:12px; font-size:12px; border:1px solid #ccc; background:#fff; cursor:pointer; }
         .mode-switch button.active { background:var(--blue); color:#fff; border-color:var(--blue); }
         .total-time-area { margin:6px 0; }
-        .total-time-main { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-        .total-time-avg { font-weight:600; margin-left:8px; }
+        .total-time-avg { font-weight:600; margin-bottom:4px; }
         .total-measurements { margin-left:16px; }
         .total-measure-row { display:flex; align-items:center; gap:4px; margin-bottom:2px; }
         .total-measure-row input { width:70px; padding:2px 4px; font-size:12px; text-align:center; border:1px solid #ddd; border-radius:4px; }
@@ -116,7 +115,6 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const currentUser = urlParams.get('user') || '陈港华';
-
     const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
     let lineData = [];
     let contextTarget = null;
@@ -181,20 +179,13 @@
             if (data) {
                 productNameInput.value = data.product_name || '';
                 lineData = data.data || [];
-                // 兼容旧数据格式
                 lineData.forEach(worker => {
                     worker.子工序 = (worker.子工序 || []).map(sub => {
-                        if (!sub.times) {
-                            sub.times = [sub.time || 5];
-                            sub.avgTime = average(sub.times);
-                        } else {
-                            sub.avgTime = average(sub.times);
-                        }
+                        if (!sub.times) { sub.times = [sub.time || 5]; sub.avgTime = average(sub.times); }
+                        else { sub.avgTime = average(sub.times); }
                         return sub;
                     });
-                    if (worker.isTotalMode && !worker.totalTimes) {
-                        worker.totalTimes = [worker.totalTime || 0];
-                    }
+                    if (worker.isTotalMode && !worker.totalTimes) worker.totalTimes = [worker.totalTime || 0];
                 });
             } else {
                 productNameInput.value = '';
@@ -216,21 +207,27 @@
             const subList = [];
             for (let j = 0; j < 3; j++) {
                 const times = [Math.floor(Math.random() * 8) + 5];
-                subList.push({
-                    name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
-                    times: times,
-                    avgTime: average(times)
+                subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times, avgTime: average(times) });
+            }
+            lineData.push({ 作业员: `作业员${i+1}`, 大工序: "新大工序", 子工序: subList, isTotalMode: false, totalTime: 0, totalTimes: [] });
+        }
+    }
+
+    function refreshDisplay() {
+        updateGantt();
+        updateBalance();
+        lineData.forEach((worker, wIdx) => {
+            const total = getWorkerTotal(worker);
+            if (worker.isTotalMode) {
+                const avgEl = document.getElementById(`avg-total-${wIdx}`);
+                if (avgEl) avgEl.innerHTML = `<strong>平均总时间：${total.toFixed(1)}s</strong>`;
+            } else {
+                (worker.子工序 || []).forEach((sub, sIdx) => {
+                    const avgEl = document.getElementById(`avg-sub-${wIdx}-${sIdx}`);
+                    if (avgEl) avgEl.textContent = `均 ${sub.avgTime.toFixed(1)}s`;
                 });
             }
-            lineData.push({
-                作业员: `作业员${i+1}`,
-                大工序: "新大工序",
-                子工序: subList,
-                isTotalMode: false,
-                totalTime: 0,
-                totalTimes: []
-            });
-        }
+        });
     }
 
     function renderAll() {
@@ -244,20 +241,9 @@
         const subList = [];
         for (let i = 0; i < 3; i++) {
             const times = [Math.floor(Math.random() * 8) + 5];
-            subList.push({
-                name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)],
-                times: times,
-                avgTime: average(times)
-            });
+            subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times, avgTime: average(times) });
         }
-        lineData.push({
-            作业员: name,
-            大工序: "新大工序",
-            子工序: subList,
-            isTotalMode: false,
-            totalTime: 0,
-            totalTimes: []
-        });
+        lineData.push({ 作业员: name, 大工序: "新大工序", 子工序: subList, isTotalMode: false, totalTime: 0, totalTimes: [] });
         renderAll();
     }
 
@@ -299,11 +285,10 @@
             if (worker.isTotalMode) {
                 const totalArea = document.createElement('div');
                 totalArea.className = 'total-time-area';
-
                 const avgDisplay = document.createElement('div');
+                avgDisplay.id = `avg-total-${wIdx}`;
                 const currentAvg = getWorkerTotal(worker);
                 avgDisplay.innerHTML = `<strong>平均总时间：${currentAvg.toFixed(1)}s</strong>`;
-                avgDisplay.style.marginBottom = '6px';
                 totalArea.appendChild(avgDisplay);
 
                 const measurementsDiv = document.createElement('div');
@@ -317,14 +302,11 @@
                     timeInput.value = time;
                     timeInput.oninput = (e) => {
                         worker.totalTimes[mIdx] = parseFloat(e.target.value) || 0;
-                        renderAll();
+                        refreshDisplay();
                     };
                     const delBtn = document.createElement('button');
                     delBtn.textContent = '×';
-                    delBtn.style.border = 'none';
-                    delBtn.style.background = 'none';
-                    delBtn.style.color = 'red';
-                    delBtn.style.cursor = 'pointer';
+                    delBtn.style.border = 'none'; delBtn.style.background = 'none'; delBtn.style.color = 'red'; delBtn.style.cursor = 'pointer';
                     delBtn.onclick = () => {
                         worker.totalTimes.splice(mIdx, 1);
                         if (worker.totalTimes.length === 0) worker.totalTimes = [0];
@@ -340,11 +322,7 @@
                 addBtn.textContent = '+ 添加测量值';
                 addBtn.className = 'btn';
                 addBtn.style.padding = '2px 10px';
-                addBtn.onclick = () => {
-                    if (!worker.totalTimes) worker.totalTimes = [];
-                    worker.totalTimes.push(0);
-                    renderAll();
-                };
+                addBtn.onclick = () => { if (!worker.totalTimes) worker.totalTimes = []; worker.totalTimes.push(0); renderAll(); };
                 totalArea.appendChild(addBtn);
                 group.appendChild(totalArea);
             } else {
@@ -361,17 +339,13 @@
                     nameInput.oninput = (e) => { sub.name = e.target.value; updateGantt(); };
                     const avgDisplay = document.createElement('span');
                     avgDisplay.className = 'subtask-avg';
+                    avgDisplay.id = `avg-sub-${wIdx}-${sIdx}`;
                     avgDisplay.textContent = `均 ${sub.avgTime.toFixed(1)}s`;
                     const addMeasureBtn = document.createElement('button');
                     addMeasureBtn.textContent = '+测量';
                     addMeasureBtn.className = 'btn';
                     addMeasureBtn.style.padding = '2px 8px';
-                    addMeasureBtn.onclick = () => {
-                        if (!sub.times) sub.times = [];
-                        sub.times.push(0);
-                        sub.avgTime = average(sub.times);
-                        renderAll();
-                    };
+                    addMeasureBtn.onclick = () => { if (!sub.times) sub.times = []; sub.times.push(0); sub.avgTime = average(sub.times); renderAll(); };
                     const delBtn = document.createElement('button');
                     delBtn.className = 'btn-delete';
                     delBtn.textContent = '✕';
@@ -394,14 +368,11 @@
                         timeInput.oninput = (e) => {
                             sub.times[mIdx] = parseFloat(e.target.value) || 0;
                             sub.avgTime = average(sub.times);
-                            renderAll();
+                            refreshDisplay();
                         };
                         const delMeasBtn = document.createElement('button');
                         delMeasBtn.textContent = '×';
-                        delMeasBtn.style.border = 'none';
-                        delMeasBtn.style.background = 'none';
-                        delMeasBtn.style.color = 'red';
-                        delMeasBtn.style.cursor = 'pointer';
+                        delMeasBtn.style.border = 'none'; delMeasBtn.style.background = 'none'; delMeasBtn.style.color = 'red'; delMeasBtn.style.cursor = 'pointer';
                         delMeasBtn.onclick = () => {
                             sub.times.splice(mIdx, 1);
                             if (sub.times.length === 0) sub.times = [0];
@@ -420,14 +391,7 @@
                 addBtn.textContent = '+ 添加子工序';
                 addBtn.className = 'btn';
                 addBtn.style.marginLeft = '24px';
-                addBtn.onclick = () => {
-                    worker.子工序.push({
-                        name: DEFAULT_SUBTASKS[0],
-                        times: [5],
-                        avgTime: 5
-                    });
-                    renderAll();
-                };
+                addBtn.onclick = () => { worker.子工序.push({ name: DEFAULT_SUBTASKS[0], times: [5], avgTime: 5 }); renderAll(); };
                 group.appendChild(addBtn);
             }
 
@@ -463,23 +427,9 @@
 
     document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
 
-    function addMainProcess() {
-        if (!contextTarget || contextTarget.type !== 'worker') return;
-        lineData[contextTarget.idx].大工序 = '新大工序';
-        renderAll();
-    }
-    function addSubTask() {
-        if (!contextTarget || contextTarget.type !== 'subtask') return;
-        const worker = lineData[contextTarget.wIdx];
-        worker.子工序.push({ name: DEFAULT_SUBTASKS[0], times: [5], avgTime: 5 });
-        renderAll();
-    }
-    function deleteItem() {
-        if (!contextTarget) return;
-        if (contextTarget.type === 'worker') lineData.splice(contextTarget.idx, 1);
-        else lineData[contextTarget.wIdx].子工序.splice(contextTarget.sIdx, 1);
-        renderAll();
-    }
+    function addMainProcess() { if (!contextTarget || contextTarget.type !== 'worker') return; lineData[contextTarget.idx].大工序 = '新大工序'; renderAll(); }
+    function addSubTask() { if (!contextTarget || contextTarget.type !== 'subtask') return; lineData[contextTarget.wIdx].子工序.push({ name: DEFAULT_SUBTASKS[0], times: [5], avgTime: 5 }); renderAll(); }
+    function deleteItem() { if (!contextTarget) return; if (contextTarget.type === 'worker') lineData.splice(contextTarget.idx, 1); else lineData[contextTarget.wIdx].子工序.splice(contextTarget.sIdx, 1); renderAll(); }
 
     function updateGantt() {
         const ctx = canvas.getContext('2d');
@@ -556,10 +506,7 @@
     }
 
     function updateBalance() {
-        if (lineData.length === 0) {
-            balanceLabel.textContent = '线平衡率：0%';
-            return;
-        }
+        if (lineData.length === 0) { balanceLabel.textContent = '线平衡率：0%'; return; }
         const times = lineData.map(w => getWorkerTotal(w));
         const balance = Math.round((Math.min(...times) / Math.max(...times)) * 100);
         balanceLabel.textContent = `线平衡率：${balance}%`;
@@ -591,26 +538,11 @@
                     lineData = [];
                     json.forEach(row => {
                         const subList = [];
-                        Object.keys(row).forEach(col => {
-                            if (col !== '作业员' && col !== '大工序' && col !== 'isTotalMode' && col !== 'totalTime' && col !== 'totalTimes') {
-                                const v = parseFloat(row[col]) || 0;
-                                subList.push({ name: col, times: [v], avgTime: v });
-                            }
-                        });
+                        Object.keys(row).forEach(col => { if (col !== '作业员' && col !== '大工序' && col !== 'isTotalMode' && col !== 'totalTime' && col !== 'totalTimes') { const v = parseFloat(row[col])||0; subList.push({ name: col, times: [v], avgTime: v }); } });
                         let totalTimes = [];
-                        if (row['totalTimes']) {
-                            totalTimes = String(row['totalTimes']).split(',').map(v => parseFloat(v) || 0);
-                        } else if (row['totalTime']) {
-                            totalTimes = [parseFloat(row['totalTime']) || 0];
-                        }
-                        lineData.push({
-                            作业员: row['作业员']||'',
-                            大工序: row['大工序']||'',
-                            子工序: subList,
-                            isTotalMode: row['isTotalMode'] === true || row['isTotalMode'] === 'true',
-                            totalTime: parseFloat(row['totalTime']) || 0,
-                            totalTimes: totalTimes
-                        });
+                        if (row['totalTimes']) totalTimes = String(row['totalTimes']).split(',').map(v => parseFloat(v)||0);
+                        else if (row['totalTime']) totalTimes = [parseFloat(row['totalTime'])||0];
+                        lineData.push({ 作业员: row['作业员']||'', 大工序: row['大工序']||'', 子工序: subList, isTotalMode: row['isTotalMode']===true||row['isTotalMode']==='true', totalTime: parseFloat(row['totalTime'])||0, totalTimes });
                     });
                 }
                 renderAll();
@@ -624,27 +556,9 @@
         const data = [];
         lineData.forEach(w => {
             if (w.isTotalMode) {
-                data.push({
-                    作业员: w.作业员,
-                    大工序: w.大工序,
-                    子工序: '',
-                    平均时间: getWorkerTotal(w).toFixed(1),
-                    测量值: (w.totalTimes || []).join(','),
-                    isTotalMode: true,
-                    totalTime: getWorkerTotal(w)
-                });
+                data.push({ 作业员: w.作业员, 大工序: w.大工序, 子工序: '', 平均时间: getWorkerTotal(w).toFixed(1), 测量值: (w.totalTimes||[]).join(','), isTotalMode: true, totalTime: getWorkerTotal(w) });
             } else {
-                w.子工序.forEach(s => {
-                    data.push({
-                        作业员: w.作业员,
-                        大工序: w.大工序,
-                        子工序: s.name,
-                        平均时间: s.avgTime.toFixed(1),
-                        测量值: s.times.join(','),
-                        isTotalMode: false,
-                        totalTime: 0
-                    });
-                });
+                w.子工序.forEach(s => { data.push({ 作业员: w.作业员, 大工序: w.大工序, 子工序: s.name, 平均时间: s.avgTime.toFixed(1), 测量值: s.times.join(','), isTotalMode: false, totalTime: 0 }); });
             }
         });
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
@@ -679,7 +593,6 @@
         document.getElementById('menuAddSub').addEventListener('click', addSubTask);
         document.getElementById('menuDelete').addEventListener('click', deleteItem);
         document.getElementById('btnSave').addEventListener('click', manualSave);
-        productNameInput.addEventListener('input', () => {}); // 产品名称暂不自动保存
 
         (async () => {
             await loadFromCloud();
