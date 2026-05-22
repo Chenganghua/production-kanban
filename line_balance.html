@@ -117,6 +117,7 @@
     const currentUser = urlParams.get('user') || '陈港华';
     const DEFAULT_SUBTASKS = ["打螺丝","选底座面壳","焊线","贴标","选灯头面壳"];
     let lineData = [];
+    window.lineData = lineData;
     let contextTarget = null;
     let pendingSave = false;
 
@@ -132,17 +133,24 @@
 
     function average(arr) {
         if (!arr || !arr.length) return 0;
-        return arr.reduce((s, v) => s + parseFloat(v) || 0, 0) / arr.length;
+        const total = arr.reduce((s, v) => s + parseFloat(v) || 0, 0);
+        return total / arr.length;
     }
 
     function getWorkerTotal(worker) {
         if (worker.isTotalMode) {
             const times = worker.totalTimes || [];
-            return times.length > 0 ? average(times) : (worker.totalTime || 0);
+            if (times.length > 0) {
+                return average(times);
+            }
+            return worker.totalTime || 0;
         } else {
-            return (worker.子工序 || []).reduce((sum, s) => sum + s.avgTime, 0);
+            return (worker.子工序 || []).reduce((sum, s) => {
+                return sum + (s.avgTime || 0);
+            }, 0);
         }
     }
+    window.getWorkerTotal = getWorkerTotal;
 
     async function manualSave() {
         if (pendingSave) return;
@@ -179,13 +187,20 @@
             if (data) {
                 productNameInput.value = data.product_name || '';
                 lineData = data.data || [];
+                window.lineData = lineData;
                 lineData.forEach(worker => {
                     worker.子工序 = (worker.子工序 || []).map(sub => {
-                        if (!sub.times) { sub.times = [sub.time || 5]; sub.avgTime = average(sub.times); }
-                        else { sub.avgTime = average(sub.times); }
+                        if (!sub.times) {
+                            sub.times = [sub.time || 5];
+                            sub.avgTime = average(sub.times);
+                        } else {
+                            sub.avgTime = average(sub.times);
+                        }
                         return sub;
                     });
-                    if (worker.isTotalMode && !worker.totalTimes) worker.totalTimes = [worker.totalTime || 0];
+                    if (worker.isTotalMode && !worker.totalTimes) {
+                        worker.totalTimes = [worker.totalTime || 0];
+                    }
                 });
             } else {
                 productNameInput.value = '';
@@ -207,10 +222,11 @@
             const subList = [];
             for (let j = 0; j < 3; j++) {
                 const times = [Math.floor(Math.random() * 8) + 5];
-                subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times, avgTime: average(times) });
+                subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times: times, avgTime: average(times) });
             }
             lineData.push({ 作业员: `作业员${i+1}`, 大工序: "新大工序", 子工序: subList, isTotalMode: false, totalTime: 0, totalTimes: [] });
         }
+        window.lineData = lineData;
     }
 
     function refreshDisplay() {
@@ -241,9 +257,10 @@
         const subList = [];
         for (let i = 0; i < 3; i++) {
             const times = [Math.floor(Math.random() * 8) + 5];
-            subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times, avgTime: average(times) });
+            subList.push({ name: DEFAULT_SUBTASKS[Math.floor(Math.random() * DEFAULT_SUBTASKS.length)], times: times, avgTime: average(times) });
         }
         lineData.push({ 作业员: name, 大工序: "新大工序", 子工序: subList, isTotalMode: false, totalTime: 0, totalTimes: [] });
+        window.lineData = lineData;
         renderAll();
     }
 
@@ -506,9 +523,18 @@
     }
 
     function updateBalance() {
-        if (lineData.length === 0) { balanceLabel.textContent = '线平衡率：0%'; return; }
+        if (!lineData || lineData.length === 0) {
+            balanceLabel.textContent = '线平衡率：0%';
+            return;
+        }
         const times = lineData.map(w => getWorkerTotal(w));
-        const balance = Math.round((Math.min(...times) / Math.max(...times)) * 100);
+        const minTime = Math.min(...times);
+        const maxTime = Math.max(...times);
+        if (maxTime <= 0) {
+            balanceLabel.textContent = '线平衡率：0%';
+            return;
+        }
+        const balance = Math.round((minTime / maxTime) * 100);
         balanceLabel.textContent = `线平衡率：${balance}%`;
     }
 
@@ -545,6 +571,7 @@
                         lineData.push({ 作业员: row['作业员']||'', 大工序: row['大工序']||'', 子工序: subList, isTotalMode: row['isTotalMode']===true||row['isTotalMode']==='true', totalTime: parseFloat(row['totalTime'])||0, totalTimes });
                     });
                 }
+                window.lineData = lineData;
                 renderAll();
             };
             reader.readAsArrayBuffer(file);
