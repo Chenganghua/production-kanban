@@ -201,6 +201,7 @@
                 <button class="btn btn-red" id="btnClearAll">删除全部</button>
                 <button class="btn btn-green" onclick="exportPDF()">导出PDF</button>
                 <button class="btn" onclick="exportExcel()" style="background:#34C759; color:#fff;">导出Excel</button>
+                <button class="btn" id="btnSave" style="background:#34C759; color:#fff;">💾 保存</button>
             </div>
         </div>
         <div class="table-scroll"><table id="dataTable">
@@ -221,42 +222,34 @@
     const SUPABASE_URL = 'https://heialtqbftbmtvgemrld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_a3OQjdShFybq73P0rzpebg_pM90NvQV';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-        storage: {
-            getItem: () => null,
-            setItem: () => {},
-            removeItem: () => {},
-        }
-    }
-});
+        auth: { storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } }
+    });
 
     let boards = ['陈港华', '龙波章', '戴腾昭', '蔡旺知'];
     let currentTemplate = '3process';
     let active = boards[0];
-    active = boards[0];
-const titleEl = document.querySelector('.board-title');
-if (titleEl) titleEl.textContent = loadTitle(active);
     let allData = {};
-    let boardTitles = {}; 
-function saveTitle(board, title) {
-    const key = 'board_title_' + board;
-    if (title && title !== '生产数据看板-可编辑') {
-        localStorage.setItem(key, title);
-    } else {
-        localStorage.removeItem(key); 
-    }
-}
-
-function loadTitle(board) {
-    const key = 'board_title_' + board;
-    return localStorage.getItem(key) || '生产数据看板-可编辑';
-}
+    let boardTitles = {};
     let pendingSave = false;
     let mainChart, defectChart;
     let filterStart = '', filterEnd = '';
     let chartWidthPercent = parseInt(localStorage.getItem('chartWidthPercent')) || 65;
     const dot = document.getElementById('syncDot');
     const txt = document.getElementById('syncText');
+
+    function saveTitle(board, title) {
+        const key = 'board_title_' + board;
+        if (title && title !== '生产数据看板-可编辑') {
+            localStorage.setItem(key, title);
+        } else {
+            localStorage.removeItem(key);
+        }
+    }
+
+    function loadTitle(board) {
+        const key = 'board_title_' + board;
+        return localStorage.getItem(key) || '生产数据看板-可编辑';
+    }
 
     function setSyncStatus(status) {
         dot.className = 'sync-dot';
@@ -327,12 +320,6 @@ function loadTitle(board) {
         } finally {
             pendingSave = false;
         }
-    }
-
-    let saveTimer = null;
-    function saveToCloud(board) {
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => doSave(board), 800);
     }
 
     function totalDefect(r) { return r.cosmeticProcess + r.cosmeticMaterial + r.functionalProcess + r.functionalMaterial; }
@@ -442,6 +429,110 @@ function loadTitle(board) {
         localStorage.setItem('chartWidthPercent', chartWidthPercent);
     };
 
+    async function manualSave() {
+        await doSave(active);
+        toast('数据已保存到云端');
+    }
+
+    function updateRowDisplay(date, process) {
+        const row = (allData[active] || []).find(r => r.date === date && r.process === process);
+        if (!row) return;
+        const tr = document.getElementById('r-' + date + '-' + process);
+        if (!tr) return;
+        const w = row.workers, hr = row.dailyHours, wh = w * hr;
+        const td = totalDefect(row);
+        const rate = defectRate(row.productionQty, td);
+        const up = upph(row.productionQty, w, hr);
+        const pr = up > 0 ? 20 / up : 0;
+        const targetProdMap = {
+            '后焊': parseFloat(document.getElementById('targetProd_后焊')?.value) || 300,
+            '组装': parseFloat(document.getElementById('targetProd_组装')?.value) || 350,
+            '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350,
+            '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500
+        };
+        const targetDefectVal = parseFloat(document.getElementById('targetDefect').value) || 5;
+        const targetProd = targetProdMap[row.process] || 300;
+        const prodOk = row.productionQty >= targetProd;
+        const defectOk = rate === null || rate <= targetDefectVal;
+
+        tr.children[7].textContent = td;
+        tr.children[8].textContent = fmtR(rate);
+        tr.children[11].textContent = wh.toFixed(1);
+        tr.children[12].textContent = (hr > 0 ? row.productionQty / hr : 0).toFixed(2);
+        tr.children[13].textContent = fmtV(up);
+        tr.children[14].textContent = pr > 0 ? '¥' + pr.toFixed(2) : '-';
+        tr.children[15].textContent = (prodOk ? '✔' : 'X') + (defectOk ? '✔' : 'X');
+
+        const rowClass = (!prodOk || !defectOk) ? 'over-target' : '';
+        tr.className = rowClass;
+    }
+
+    function updateSummaryRowForDate(date) {
+        const rows = (allData[active] || []).filter(r => r.date === date);
+        if (!rows.length) return;
+        const allTrs = document.querySelectorAll('tr.summary-row');
+        let summaryTr = null;
+        allTrs.forEach(tr => {
+            if (tr.children[0].textContent.includes(date)) summaryTr = tr;
+        });
+        if (!summaryTr) return;
+        let tp = 0, tcp = 0, tcm = 0, tfp = 0, tfm = 0, tw = 0, th = 0, twh = 0, tpr = 0;
+        rows.forEach(r => {
+            tp += r.productionQty; tcp += r.cosmeticProcess; tcm += r.cosmeticMaterial;
+            tfp += r.functionalProcess; tfm += r.functionalMaterial;
+            tw += r.workers; th += r.dailyHours; twh += r.workers * r.dailyHours;
+            const up = upph(r.productionQty, r.workers, r.dailyHours);
+            if (up > 0) tpr += 20 / up;
+        });
+        const ttd = tcp + tcm + tfp + tfm;
+        summaryTr.children[2].textContent = tp;
+        summaryTr.children[3].textContent = tcp;
+        summaryTr.children[4].textContent = tcm;
+        summaryTr.children[5].textContent = tfp;
+        summaryTr.children[6].textContent = tfm;
+        summaryTr.children[7].textContent = ttd;
+        summaryTr.children[8].textContent = fmtR(defectRate(tp, ttd));
+        summaryTr.children[9].textContent = tw;
+        summaryTr.children[10].textContent = th.toFixed(1);
+        summaryTr.children[11].textContent = twh.toFixed(1);
+        summaryTr.children[12].textContent = (th > 0 ? tp / th : 0).toFixed(2);
+        summaryTr.children[13].textContent = fmtV(upph(tp, tw, th));
+        summaryTr.children[14].textContent = '¥' + tpr.toFixed(2);
+    }
+
+    function updateGrandTotalInline() {
+        const all = (allData[active] || []);
+        const gtRow = document.querySelector('tr.grand-total-row');
+        if (!gtRow) return;
+        if (all.length === 0) { gtRow.style.display = 'none'; return; }
+        gtRow.style.display = '';
+        let atp=0,atcp=0,atcm=0,atfp=0,atfm=0,atw=0,ath=0,atwh=0,atpr=0;
+        const dpMap = {};
+        all.forEach(r => {
+            atp+=r.productionQty; atcp+=r.cosmeticProcess; atcm+=r.cosmeticMaterial;
+            atfp+=r.functionalProcess; atfm+=r.functionalMaterial;
+            atw+=r.workers; ath+=r.dailyHours; atwh+=r.workers*r.dailyHours;
+            const up = upph(r.productionQty, r.workers, r.dailyHours);
+            const pr = up>0?20/up:0;
+            if(!dpMap[r.date]) dpMap[r.date]=0; dpMap[r.date]+=pr;
+        });
+        let sumPr=0; Object.values(dpMap).forEach(v=>sumPr+=v);
+        const days=Object.keys(dpMap).length;
+        gtRow.children[2].textContent = atp;
+        gtRow.children[3].textContent = atcp;
+        gtRow.children[4].textContent = atcm;
+        gtRow.children[5].textContent = atfp;
+        gtRow.children[6].textContent = atfm;
+        gtRow.children[7].textContent = atcp+atcm+atfp+atfm;
+        gtRow.children[8].textContent = fmtR(defectRate(atp,atcp+atcm+atfp+atfm));
+        gtRow.children[9].textContent = atw;
+        gtRow.children[10].textContent = ath.toFixed(1);
+        gtRow.children[11].textContent = atwh.toFixed(1);
+        gtRow.children[12].textContent = (ath>0?atp/ath:0).toFixed(2);
+        gtRow.children[13].textContent = fmtV(upph(atp,atw,ath));
+        gtRow.children[14].textContent = '¥' + (days>0?sumPr/days:0).toFixed(2);
+    }
+
     function renderTable() {
         const filtered = getFilteredRecords();
         const tbody = document.getElementById('tableBody');
@@ -453,7 +544,7 @@ function loadTitle(board) {
             '包装': parseFloat(document.getElementById('targetProd_包装')?.value) || 350,
             '一条龙': parseFloat(document.getElementById('targetProd_一条龙')?.value) || 500
         };
-        const targetDefect = parseFloat(document.getElementById('targetDefect').value) || 5;
+        const targetDefectVal = parseFloat(document.getElementById('targetDefect').value) || 5;
         const grp = {};
         filtered.forEach(r => { if (!grp[r.date]) grp[r.date] = []; grp[r.date].push(r); });
         const dates = Object.keys(grp).sort();
@@ -472,25 +563,25 @@ function loadTitle(board) {
                 tw += w; th += hr; twh += wh; if (up > 0) tpr += pr;
                 const targetProd = targetProdMap[r.process] || 300;
                 const prodOk = r.productionQty >= targetProd;
-                const defectOk = rate === null || rate <= targetDefect;
-                const rowClass = (!prodOk || !defectOk) ? ' class="over-target"' : '';
-                html += `<tr${rowClass} id="r-${d}-${r.process}">
+                const defectOk = rate === null || rate <= targetDefectVal;
+                const rowClass = (!prodOk || !defectOk) ? 'over-target' : '';
+                html += `<tr class="${rowClass}" id="r-${d}-${r.process}">
                     <td>${d}</td><td class="process-name">${r.process}</td>
-                    <td><input type="number" value="${r.productionQty}" onchange="updateCell('${d}','${r.process}','productionQty',this.value)"></td>
-                    <td><input type="number" value="${r.cosmeticProcess}" onchange="updateCell('${d}','${r.process}','cosmeticProcess',this.value)"></td>
-                    <td><input type="number" value="${r.cosmeticMaterial}" onchange="updateCell('${d}','${r.process}','cosmeticMaterial',this.value)"></td>
-                    <td><input type="number" value="${r.functionalProcess}" onchange="updateCell('${d}','${r.process}','functionalProcess',this.value)"></td>
-                    <td><input type="number" value="${r.functionalMaterial}" onchange="updateCell('${d}','${r.process}','functionalMaterial',this.value)"></td>
+                    <td><input type="number" value="${r.productionQty}" oninput="window.handleInput(this, '${d}', '${r.process}', 'productionQty')"></td>
+                    <td><input type="number" value="${r.cosmeticProcess}" oninput="window.handleInput(this, '${d}', '${r.process}', 'cosmeticProcess')"></td>
+                    <td><input type="number" value="${r.cosmeticMaterial}" oninput="window.handleInput(this, '${d}', '${r.process}', 'cosmeticMaterial')"></td>
+                    <td><input type="number" value="${r.functionalProcess}" oninput="window.handleInput(this, '${d}', '${r.process}', 'functionalProcess')"></td>
+                    <td><input type="number" value="${r.functionalMaterial}" oninput="window.handleInput(this, '${d}', '${r.process}', 'functionalMaterial')"></td>
                     <td class="calc-cell">${td}</td>
                     <td class="calc-cell">${fmtR(rate)}</td>
-                    <td><input type="number" value="${w}" onchange="updateCell('${d}','${r.process}','workers',this.value)"></td>
-                    <td><input type="number" value="${hr}" onchange="updateCell('${d}','${r.process}','dailyHours',this.value)"></td>
+                    <td><input type="number" value="${w}" oninput="window.handleInput(this, '${d}', '${r.process}', 'workers')"></td>
+                    <td><input type="number" value="${hr}" oninput="window.handleInput(this, '${d}', '${r.process}', 'dailyHours')"></td>
                     <td class="calc-cell">${wh.toFixed(1)}</td>
                     <td class="calc-cell">${(hr > 0 ? r.productionQty / hr : 0).toFixed(2)}</td>
                     <td class="calc-cell">${fmtV(up)}</td>
                     <td class="calc-cell">${pr > 0 ? '¥' + pr.toFixed(2) : '-'}</td>
                     <td>${prodOk ? '✔' : 'X'}${defectOk ? '✔' : 'X'}</td>
-                    <td><input type="text" value="${r.remark || ''}" onchange="updateCell('${d}','${r.process}','remark',this.value)"></td>
+                    <td><input type="text" value="${r.remark || ''}" oninput="window.handleInput(this, '${d}', '${r.process}', 'remark')"></td>
                     <td><button class="btn-delete" onclick="deleteRow('${d}','${r.process}')">✕</button></td>
                 </tr>`;
             });
@@ -526,26 +617,31 @@ function loadTitle(board) {
         tbody.innerHTML = html;
     }
 
-    window.updateCell = function(date, process, field, value) {
+    window.handleInput = function(el, date, process, field) {
         const row = (allData[active] || []).find(r => r.date === date && r.process === process);
         if (!row) return;
         const numFields = ['productionQty','cosmeticProcess','cosmeticMaterial','functionalProcess','functionalMaterial','workers','dailyHours'];
-        row[field] = numFields.includes(field) ? (parseFloat(value) || 0) : value;
-        saveToCloud(active);
-        refreshAll();
+        row[field] = numFields.includes(field) ? (parseFloat(el.value) || 0) : el.value;
+        updateRowDisplay(date, process);
+        updateSummaryRowForDate(date);
+        updateGrandTotalInline();
+        // 更新图表
+        if (mainChart) updateMainChart();
+        if (defectChart) updateDefectChart();
     };
+
     window.deleteRow = async function(date, process) {
         if (!confirm('确定删除这行？')) return;
         allData[active] = (allData[active] || []).filter(r => !(r.date === date && r.process === process));
         await db.from('production_records').delete().eq('date', date).eq('process', process).eq('board', active);
-        saveToCloud(active);
+        await doSave(active);
         refreshAll();
     };
     window.deleteDate = async function(date) {
         if (!confirm(`确定删除 ${date} 所有记录？`)) return;
         allData[active] = (allData[active] || []).filter(r => r.date !== date);
         await db.from('production_records').delete().eq('date', date).eq('board', active);
-        saveToCloud(active);
+        await doSave(active);
         refreshAll();
     };
     window.addDay = async function() {
@@ -610,9 +706,13 @@ function loadTitle(board) {
         if (!confirm('确定删除当前数据？')) return;
         allData[active] = [];
         await db.from('production_records').delete().eq('board', active);
-        saveToCloud(active);
+        await doSave(active);
         refreshAll();
         toast('已清除全部数据');
+    });
+
+    document.getElementById('btnSave').addEventListener('click', async function() {
+        await manualSave();
     });
 
     window.setTemplate = function(template) {
@@ -638,20 +738,17 @@ function loadTitle(board) {
         }
     };
 
-window.switchBoard = async function(board) {
-    if (board === active) return;
-    const titleEl = document.querySelector('.board-title');
-    if (titleEl) saveTitle(active, titleEl.textContent);
-    
-    active = board;
-    if (!allData[active]) await loadBoardFromCloud(active);
-    
-    if (titleEl) titleEl.textContent = loadTitle(active);
-    
-    document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
-    refreshAll();
-    renderTabs();
-};
+    window.switchBoard = async function(board) {
+        if (board === active) return;
+        const titleEl = document.querySelector('.board-title');
+        if (titleEl) saveTitle(active, titleEl.textContent);
+        active = board;
+        if (!allData[active]) await loadBoardFromCloud(active);
+        if (titleEl) titleEl.textContent = loadTitle(active);
+        document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(board);
+        refreshAll();
+        renderTabs();
+    };
 
     function renderTabs() {
         const tabsBar = document.getElementById('tabsBar');
@@ -684,11 +781,11 @@ window.switchBoard = async function(board) {
         }
     };
     window.deleteBoard = async function(board) {
-        if (!confirm(`删除页面“${board}”及其所有数据？`)) return;
+        if (!confirm(`删除页面"${board}"及其所有数据？`)) return;
         await db.from('production_records').delete().eq('board', board);
         boards = boards.filter(b => b !== board);
         delete allData[board];
-        if (active === board) { ; if (!allData[active]) await loadBoardFromCloud(active); }
+        if (active === board) { active = boards[0]; if (!allData[active]) await loadBoardFromCloud(active); }
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
@@ -713,29 +810,33 @@ window.switchBoard = async function(board) {
 
     async function init() {
         for (const b of boards) { await loadBoardFromCloud(b); }
-        ;
+        active = boards[0];
+        const titleEl = document.querySelector('.board-title');
+        if (titleEl) titleEl.textContent = loadTitle(active);
         document.getElementById('taktTimeLink').href = 'line_balance.html?user=' + encodeURIComponent(active);
         renderTabs();
         refreshAll();
         setSyncStatus('connected');
+
         db.channel('public:production_records')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'production_records' }, async (payload) => {
                 if (pendingSave) return;
                 await loadBoardFromCloud(active);
                 refreshAll();
             }).subscribe();
+
         ['targetProd_后焊', 'targetProd_组装', 'targetProd_包装', 'targetProd_一条龙'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', refreshAll);
         });
         document.getElementById('targetDefect').addEventListener('input', refreshAll);
 
-const boardTitleElement = document.querySelector('.board-title');
-if (boardTitleElement) {
-    boardTitleElement.addEventListener('input', function() {
-        saveTitle(active, boardTitleElement.textContent); 
-    });
-}
+        const boardTitleElement = document.querySelector('.board-title');
+        if (boardTitleElement) {
+            boardTitleElement.addEventListener('input', function() {
+                saveTitle(active, boardTitleElement.textContent);
+            });
+        }
     }
     init();
 })();
