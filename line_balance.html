@@ -466,8 +466,16 @@
         }
         document.getElementById('workerCount').textContent = lineData.length;
 
-        const barHeight = Math.min(36, (container.clientHeight - 60) / lineData.length);
-        const startY = 10;
+        const canvasHeight = container.clientHeight;
+        const topPadding = 10;
+        const bottomPadding = 10;
+        const gapBetweenBars = 8;
+        const totalGaps = (lineData.length - 1) * gapBetweenBars;
+        const availableHeight = canvasHeight - topPadding - bottomPadding - totalGaps;
+        let barHeight = availableHeight / lineData.length;
+        if (barHeight < 20) barHeight = 20;
+
+        const startY = topPadding;
         const leftMargin = 100;
         const barStartX = leftMargin + 10;
         const timeTextWidth = 60;
@@ -488,7 +496,7 @@
 
         lineData.forEach((w, i) => {
             let left = 0;
-            const y = startY + i * (barHeight + 12);
+            const y = startY + i * (barHeight + gapBetweenBars);
             const total = getWorkerTotal(w);
             if (total === maxTime) {
                 ctx.fillStyle = 'rgba(255,59,48,0.3)';
